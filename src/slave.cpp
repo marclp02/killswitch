@@ -25,7 +25,10 @@ void receive_keepalive(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
 }
 
 void send_pairing() {
+    digitalWrite(LED_BUILTIN, LOW);
     esp_now_send(broadcastAddress, (uint8_t *) &pairing, sizeof(pairing));
+    delay(100);
+    digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void setup() {
@@ -45,6 +48,7 @@ void loop() {
     unsigned long elapsed = millis() - last_time;
     if (!paired && elapsed > pairing_interval) {
         send_pairing();
+        last_time = millis();
     } else if (paired && elapsed > keepalive_interval) {
         if (!keepalive.keepalive) {
             digitalWrite(LED_BUILTIN, HIGH);

@@ -57,4 +57,5 @@ void loop() {
         send_keepalive();
         last_time = millis();
     }
+    yield();
 }
