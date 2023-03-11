@@ -5,15 +5,11 @@
 uint8_t broadcastAddress[] = {0xE8, 0xDB, 0x84, 0x99, 0xFE, 0x1D};
 
 typedef struct struct_message {
-    char a[32];
-    int b;
-    float c;
-    String d;
-    bool e;
+    int number;
 } struct_message;
 
-// Create a struct_message called myData
-struct_message myData;
+struct_message data_in;
+struct_message data_out;
 
 unsigned long lastTime = 0;
 unsigned long timerDelay = 2000;  // send readings timer
@@ -29,40 +25,32 @@ void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
     }
 }
 
-void setup() {
-    // Init Serial Monitor
-    Serial.begin(115200);
+void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
+    memcpy(&data_in, incomingData, sizeof(data_in));
+    Serial.println(data_in.number);
 
-    // Set device as a Wi-Fi Station
+}
+
+void setup() {
+    Serial.begin(115200);
     WiFi.mode(WIFI_STA);
 
-    // Init ESP-NOW
     if (esp_now_init() != 0) {
         Serial.println("Error initializing ESP-NOW");
         return;
     }
 
-    // Once ESPNow is successfully Init, we will register for Send CB to
-    // get the status of Trasnmitted packet
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     esp_now_register_send_cb(OnDataSent);
+    esp_now_register_recv_cb(OnDataRecv);
 
-    // Register peer
-    esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
+    esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
 }
 
 void loop() {
     if ((millis() - lastTime) > timerDelay) {
-        // Set values to send
-        strcpy(myData.a, "THIS IS A CHAR");
-        myData.b = random(1,20);
-        myData.c = 1.2;
-        myData.d = "Hello";
-        myData.e = false;
-
-        // Send message via ESP-NOW
-        esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
-
+        data_out.number = random(1,20);
+        esp_now_send(broadcastAddress, (uint8_t *) &data_out, sizeof(data_out));
         lastTime = millis();
     }
 }

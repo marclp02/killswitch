@@ -1,56 +1,56 @@
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
+// REPLACE WITH RECEIVER MAC Address
+uint8_t broadcastAddress[] = {0x40, 0xF5, 0x20, 0x25, 0xA1, 0xB0};
+
 typedef struct struct_message {
-      char a[32];
-      int b;
-      float c;
-      String d;
-      bool e;
+    int number;
 } struct_message;
 
-struct_message data_in
-;
+struct_message data_in;
+struct_message data_out;
 
-// Callback function that will be executed when data is received
+unsigned long lastTime = 0;
+unsigned long timerDelay = 2000;  // send readings timer
+
+// Callback when data is sent
+void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
+    Serial.print("Last Packet Send Status: ");
+    if (sendStatus == 0){
+        Serial.println("Delivery success");
+    }
+    else{
+        Serial.println("Delivery fail");
+    }
+}
+
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
     memcpy(&data_in, incomingData, sizeof(data_in));
-    Serial.print("Bytes received: ");
-    Serial.println(len);
-    Serial.print("Char: ");
-    Serial.println(data_in.a);
-    Serial.print("Int: ");
-    Serial.println(data_in.b);
-    Serial.print("Float: ");
-    Serial.println(data_in.c);
-    Serial.print("String: ");
-    Serial.println(data_in.d);
-    Serial.print("Bool: ");
-    Serial.println(data_in.e);
-    Serial.println();
+    Serial.println(data_in.number);
+
 }
- 
+
 void setup() {
-    // Initialize Serial Monitor
     Serial.begin(115200);
-    
-    // Set device as a Wi-Fi Station
     WiFi.mode(WIFI_STA);
 
-    // Init ESP-NOW
     if (esp_now_init() != 0) {
-      Serial.println("Error initializing ESP-NOW");
-      return;
+        Serial.println("Error initializing ESP-NOW");
+        return;
     }
 
-    delay(500);
-    Serial.println("setup...");
-    
-    // Once ESPNow is successfully Init, we will register for recv CB to
-    // get recv packer info
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+    esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);
+
+    esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
 }
 
 void loop() {
+    if ((millis() - lastTime) > timerDelay) {
+        data_out.number = random(1,20);
+        esp_now_send(broadcastAddress, (uint8_t *) &data_out, sizeof(data_out));
+        lastTime = millis();
+    }
 }
