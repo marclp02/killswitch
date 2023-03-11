@@ -1,8 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
-// Structure example to receive data
-// Must match the sender structure
 typedef struct struct_message {
       char a[32];
       int b;
@@ -11,24 +9,24 @@ typedef struct struct_message {
       bool e;
 } struct_message;
 
-// Create a struct_message called myData
-struct_message myData;
+struct_message data_in
+;
 
 // Callback function that will be executed when data is received
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
-    memcpy(&myData, incomingData, sizeof(myData));
+    memcpy(&data_in, incomingData, sizeof(data_in));
     Serial.print("Bytes received: ");
     Serial.println(len);
     Serial.print("Char: ");
-    Serial.println(myData.a);
+    Serial.println(data_in.a);
     Serial.print("Int: ");
-    Serial.println(myData.b);
+    Serial.println(data_in.b);
     Serial.print("Float: ");
-    Serial.println(myData.c);
+    Serial.println(data_in.c);
     Serial.print("String: ");
-    Serial.println(myData.d);
+    Serial.println(data_in.d);
     Serial.print("Bool: ");
-    Serial.println(myData.e);
+    Serial.println(data_in.e);
     Serial.println();
 }
  
