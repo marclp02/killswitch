@@ -2,7 +2,7 @@
 #include <espnow.h>
 
 // REPLACE WITH RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0x40, 0xF5, 0x20, 0x25, 0xA1, 0xB0};
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 typedef struct struct_message {
     int number;
@@ -44,7 +44,7 @@ void setup() {
     esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);
 
-    esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
+    //esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
 }
 
 void loop() {
