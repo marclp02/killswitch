@@ -53,4 +53,5 @@ void loop() {
         esp_now_send(broadcastAddress, (uint8_t *) &data_out, sizeof(data_out));
         lastTime = millis();
     }
+    yield();
 }
