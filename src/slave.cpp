@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
-// REPLACE WITH RECEIVER MAC Address
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 typedef struct struct_message {
@@ -12,23 +11,16 @@ struct_message data_in;
 struct_message data_out;
 
 unsigned long lastTime = 0;
-unsigned long timerDelay = 2000;  // send readings timer
+unsigned long timerDelay = 2000;
 
-// Callback when data is sent
 void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
-    Serial.print("Last Packet Send Status: ");
-    if (sendStatus == 0){
-        Serial.println("Delivery success");
-    }
-    else{
-        Serial.println("Delivery fail");
-    }
+    Serial.print("SENT");
 }
 
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
     memcpy(&data_in, incomingData, sizeof(data_in));
+    Serial.print("RECEIVED: ");
     Serial.println(data_in.number);
-
 }
 
 void setup() {
@@ -53,5 +45,5 @@ void loop() {
         esp_now_send(broadcastAddress, (uint8_t *) &data_out, sizeof(data_out));
         lastTime = millis();
     }
-    yield();
+    //yield();
 }

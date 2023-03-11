@@ -1,8 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
-// REPLACE WITH RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0xE8, 0xDB, 0x84, 0x99, 0xFE, 0x1D};
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 typedef struct struct_message {
     int number;
@@ -12,23 +11,16 @@ struct_message data_in;
 struct_message data_out;
 
 unsigned long lastTime = 0;
-unsigned long timerDelay = 2000;  // send readings timer
+unsigned long timerDelay = 2000;
 
-// Callback when data is sent
 void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
-    Serial.print("Last Packet Send Status: ");
-    if (sendStatus == 0){
-        Serial.println("Delivery success");
-    }
-    else{
-        Serial.println("Delivery fail");
-    }
+    Serial.print("SENT");
 }
 
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
     memcpy(&data_in, incomingData, sizeof(data_in));
+    Serial.print("RECEIVED: ");
     Serial.println(data_in.number);
-
 }
 
 void setup() {
@@ -44,7 +36,7 @@ void setup() {
     esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);
 
-    esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
+    //esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
 }
 
 void loop() {
@@ -53,5 +45,5 @@ void loop() {
         esp_now_send(broadcastAddress, (uint8_t *) &data_out, sizeof(data_out));
         lastTime = millis();
     }
-    yield();
+    //yield();
 }
