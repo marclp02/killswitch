@@ -1,59 +1,58 @@
 #include <ESP8266WiFi.h>
 #include <espnow.h>
-#include "message.cpp"
 
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+// Structure example to receive data
+// Must match the sender structure
+typedef struct struct_message {
+      char a[32];
+      int b;
+      float c;
+      String d;
+      bool e;
+} struct_message;
 
-struct_pairing pairing;
-struct_keepalive keepalive;
+// Create a struct_message called myData
+struct_message myData;
 
-bool paired = false;
-unsigned long last_time = 0;
-unsigned long keepalive_interval = 500;
-unsigned long pairing_interval = 200;
-
-
-void receive_keepalive(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
-    paired = true;
-    memcpy(&keepalive, incomingData, sizeof(keepalive));
-    if (keepalive.keepalive == 1) {
-        digitalWrite(LED_BUILTIN, LOW);
-    } else {
-        digitalWrite(LED_BUILTIN, HIGH);
-    }
-    last_time = millis();
+// Callback function that will be executed when data is received
+void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
+    memcpy(&myData, incomingData, sizeof(myData));
+    Serial.print("Bytes received: ");
+    Serial.println(len);
+    Serial.print("Char: ");
+    Serial.println(myData.a);
+    Serial.print("Int: ");
+    Serial.println(myData.b);
+    Serial.print("Float: ");
+    Serial.println(myData.c);
+    Serial.print("String: ");
+    Serial.println(myData.d);
+    Serial.print("Bool: ");
+    Serial.println(myData.e);
+    Serial.println();
 }
-
-void send_pairing() {
-    digitalWrite(LED_BUILTIN, LOW);
-    esp_now_send(broadcastAddress, (uint8_t *) &pairing, sizeof(pairing));
-    delay(100);
-    digitalWrite(LED_BUILTIN, HIGH);
-}
-
+ 
 void setup() {
+    // Initialize Serial Monitor
+    Serial.begin(115200);
+    
+    // Set device as a Wi-Fi Station
     WiFi.mode(WIFI_STA);
-    esp_now_init();
-    esp_now_set_self_role(ESP_NOW_ROLE_MAX);
-    WiFi.macAddress(pairing.mac);
 
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, HIGH);
+    // Init ESP-NOW
+    if (esp_now_init() != 0) {
+      Serial.println("Error initializing ESP-NOW");
+      return;
+    }
 
-    esp_now_register_recv_cb(receive_keepalive);
-
+    delay(500);
+    Serial.println("setup...");
+    
+    // Once ESPNow is successfully Init, we will register for recv CB to
+    // get recv packer info
+    esp_now_set_self_role(ESP_NOW_ROLE_SLAVE);
+    esp_now_register_recv_cb(OnDataRecv);
 }
 
 void loop() {
-    unsigned long elapsed = millis() - last_time;
-    if (!paired && elapsed > pairing_interval) {
-        send_pairing();
-        last_time = millis();
-    } else if (paired && elapsed > keepalive_interval) {
-        if (!keepalive.keepalive) {
-            digitalWrite(LED_BUILTIN, HIGH);
-        }
-        last_time = millis();
-    }
-    yield();
 }
