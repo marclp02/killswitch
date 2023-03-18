@@ -1,6 +1,6 @@
 enum MType {
-    PAIRING,
-    PAIRING_RECV,
+    PAIRING_TO_MASTER,
+    PAIRING_TO_SLAVE,
     KEEP_ALIVE,
 };
 
