@@ -1,11 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-struct Message {
-    int number;
-};
+#include "message.hpp"
 
 Message data_in;
 Message data_out;
@@ -13,14 +9,21 @@ Message data_out;
 unsigned long lastTime = 0;
 unsigned long timerDelay = 2000;
 
+bool is_paired = false;
+
 void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
     Serial.print("SENT");
 }
 
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
-    data_in = *(Message *)incomingData;
-    Serial.print("RECEIVED: ");
-    Serial.println(data_in.number);
+    if (len == 1 && *incomingData == 0x01) {
+        esp_now_add_peer(mac, ESP_NOW_ROLE_COMBO, 0, NULL, 0);
+    }
+    else {
+        data_in = *(Message *)incomingData;
+        Serial.print("RECEIVED: ");
+        Serial.println(data_in.number);
+    }
 }
 
 void setup() {
