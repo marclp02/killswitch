@@ -3,12 +3,12 @@
 
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-typedef struct struct_message {
+struct Message {
     int number;
-} struct_message;
+};
 
-struct_message data_in;
-struct_message data_out;
+Message data_in;
+Message data_out;
 
 unsigned long lastTime = 0;
 unsigned long timerDelay = 2000;
@@ -18,7 +18,7 @@ void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
 }
 
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
-    memcpy(&data_in, incomingData, sizeof(data_in));
+    data_in = *(Message *)incomingData;
     Serial.print("RECEIVED: ");
     Serial.println(data_in.number);
 }
@@ -35,8 +35,6 @@ void setup() {
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);
-
-    //esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
 }
 
 void loop() {
@@ -45,5 +43,4 @@ void loop() {
         esp_now_send(broadcastAddress, (uint8_t *) &data_out, sizeof(data_out));
         lastTime = millis();
     }
-    //yield();
 }
