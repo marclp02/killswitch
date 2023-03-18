@@ -1,18 +1,14 @@
-enum MType {
-    PAIRING_TO_MASTER,
-    PAIRING_TO_SLAVE,
+#include<Arduino.h>
+
+enum MType : uint8_t {
+    SEND_PAIRING,
+    RECEIVE_PAIRING,
+    BEEP,
     KEEP_ALIVE,
 };
 
-struct SlavePairingMessage {
-    MType mType = PAIRING_TO_MASTER;
+struct Message {
+    MType mType;
+    int value;
 };
 
-struct MasterPairingMessage {
-    MType mType = PAIRING_TO_SLAVE;
-};
-
-struct KeepAliveMessage {
-    MType mType = KEEP_ALIVE;
-    int value = 1;
-};
