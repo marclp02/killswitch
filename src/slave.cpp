@@ -8,13 +8,15 @@ bool paired = false;
 bool enabled = false;
 
 unsigned long lastTime = 0;
-unsigned long pairingDelay = 500;
+unsigned long pairingDelay = 1000;
 unsigned long keepaliveDelay = 500;
 
 Message pairingMessage{SEND_PAIRING};
 
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
-    Message message = *(Message *) incomingData;
+    Message message;
+    memcpy(&message, incomingData, sizeof(message));
+
     switch (message.mType) {
         case RECEIVE_PAIRING:
             paired = true;
@@ -23,9 +25,11 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
         case BEEP:
             break;
         case KEEP_ALIVE:
-            digitalWrite(LED_BUILTIN, LOW);
             enabled = true;
             lastTime = millis();
+            digitalWrite(LED_BUILTIN, LOW);
+            delay(100);
+            digitalWrite(LED_BUILTIN, HIGH);
             break;
 
     }
@@ -49,9 +53,15 @@ void loop() {
         digitalWrite(LED_BUILTIN, HIGH);
         lastTime = millis();
     }
-    if (paired && elapsed > keepaliveDelay) {
+/*    if (paired && elapsed > keepaliveDelay) {
+       if (enabled) {
+            digitalWrite(LED_BUILTIN, LOW);
+            
+        } else {
+            digitalWrite(LED_BUILTIN, HIGH);
+        }
         enabled = false;
-        digitalWrite(LED_BUILTIN, HIGH);
         lastTime = millis();
     }
+    */
 }

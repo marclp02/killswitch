@@ -8,12 +8,16 @@ bool paired = false;
 
 unsigned long lastTime = 0;
 unsigned long pairingDelay = 500;
-unsigned long keepaliveDelay = 500;
+unsigned long keepaliveDelay = 200;
 
 Message pairingMessage{RECEIVE_PAIRING};
+Message keepAliveMessage{KEEP_ALIVE};
 
 void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
-    Message message = *(Message *) incomingData;
+    Message message;
+    memcpy(&message, incomingData, sizeof(message));
+//    Message *message = (Message *) incomingData;
+
     switch (message.mType) {
         case RECEIVE_PAIRING:
             break;
@@ -24,6 +28,7 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
                     Serial.print(":");
                 }
             }
+            paired = true;
             esp_now_add_peer(mac, ESP_NOW_ROLE_COMBO, 0, nullptr, 0);
             esp_now_send(nullptr, (uint8_t *) &pairingMessage, sizeof(pairingMessage));
         case BEEP:
@@ -43,6 +48,7 @@ void setup() {
 void loop() {
     unsigned long elapsed = millis() - lastTime;
     if (paired && elapsed > keepaliveDelay) {
+        esp_now_send(nullptr, (uint8_t *) &keepAliveMessage, sizeof(keepAliveMessage));
         lastTime = millis();
     }
 }
