@@ -44,6 +44,9 @@ void loop() {
     unsigned long elapsed = millis() - lastTime;
     if (!paired && elapsed > pairingDelay) {
         esp_now_send(broadcastAddress, (uint8_t *) &pairingMessage, sizeof(pairingMessage));
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(200);
+        digitalWrite(LED_BUILTIN, HIGH);
         lastTime = millis();
     }
     if (paired && elapsed > keepaliveDelay) {
