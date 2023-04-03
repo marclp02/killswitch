@@ -1,14 +1,22 @@
-#include<Arduino.h>
+#include <Arduino.h>
 
-enum MType : uint8_t {
-    SEND_PAIRING,
-    RECEIVE_PAIRING,
-    BEEP,
-    KEEP_ALIVE,
+
+enum class SMType: uint8_t {
+    PAIR_ME_PLZ,
 };
 
-struct Message {
-    MType mType;
-    int value;
+
+enum class MMType: uint8_t {
+    I_PAIRED_YOU,
+    KEEPALIVE,
 };
 
+
+struct SlaveMsg {
+    SMType type;
+};
+
+
+struct MasterMsg {
+    MMType type;
+};

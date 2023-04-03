@@ -323,46 +323,49 @@ void setup()
 {
     Wire.begin(2,0);
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-    display.display();
-    delay(2000); // Pause for 2 seconds
     display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.setTextColor(WHITE);
-    display.display();
-    testdrawline();      // Draw many lines
+    delay(100);
 
-    testdrawrect();      // Draw rectangles (outlines)
+    display.setTextSize(1); // Draw 2X-scale text
+    //display.cp437(true);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(10, 0);
+    display.println(F("FF:FF:FF:FF:FF:FF"));
+    display.display();      // Show initial text
 
-    testfillrect();      // Draw rectangles (filled)
-
-    testdrawcircle();    // Draw circles (outlines)
-
-    testfillcircle();    // Draw circles (filled)
-
-    testdrawroundrect(); // Draw rounded rectangles (outlines)
-
-    testfillroundrect(); // Draw rounded rectangles (filled)
-
-    testdrawtriangle();  // Draw triangles (outlines)
-
-    testfilltriangle();  // Draw triangles (filled)
-
-    testdrawchar();      // Draw characters of the default font
-
-    testdrawstyles();    // Draw 'stylized' characters
-
-    testscrolltext();    // Draw scrolling text
-
-    testdrawbitmap();    // Draw a small bitmap image
-
-    // Invert and restore display, pausing in-between
-    display.invertDisplay(true);
-    delay(1000);
-    display.invertDisplay(false);
-    delay(1000);
-
-    testanimate(logo_bmp, LOGO_WIDTH, LOGO_HEIGHT); // Animate bitmaps
+//    testdrawline();      // Draw many lines
+//
+//    testdrawrect();      // Draw rectangles (outlines)
+//
+//    testfillrect();      // Draw rectangles (filled)
+//
+//    testdrawcircle();    // Draw circles (outlines)
+//
+//    testfillcircle();    // Draw circles (filled)
+//
+//    testdrawroundrect(); // Draw rounded rectangles (outlines)
+//
+//    testfillroundrect(); // Draw rounded rectangles (filled)
+//
+//    testdrawtriangle();  // Draw triangles (outlines)
+//
+//    testfilltriangle();  // Draw triangles (filled)
+//
+//    testdrawchar();      // Draw characters of the default font
+//
+//    testdrawstyles();    // Draw 'stylized' characters
+//
+//    testscrolltext();    // Draw scrolling text
+//
+//    testdrawbitmap();    // Draw a small bitmap image
+//
+//    // Invert and restore display, pausing in-between
+//    display.invertDisplay(true);
+//    delay(1000);
+//    display.invertDisplay(false);
+//    delay(1000);
+//
+//    testanimate(logo_bmp, LOGO_WIDTH, LOGO_HEIGHT); // Animate bitmaps
 
 }
 void loop()

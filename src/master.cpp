@@ -17,6 +17,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 uint8_t broadcast_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 int n_pairs = 0;
+bool connected = false;
 uint8_t connected_address[6];
 
 unsigned long last_time = 0;
@@ -61,35 +62,39 @@ void confirm_pairing(uint8_t *mac) {
         ++n_pairs;
     }
 
-    MasterMsg pairing {MMType::PAIR};
-    esp_now_send(mac, (uint8_t *) &pairing, sizeof(pairing)); // `mac` or `nullptr` ?
+    MasterMsg message {MMType::I_PAIRED_YOU};
+    esp_now_send(mac, (uint8_t *) &message, sizeof(message)); // `mac` or `nullptr` ?
     blink(200);
 }
 
 
 void send_keepalive(uint8_t *mac) {
-    MasterMsg keepalive {MMType::KEEPALIVE};
-    esp_now_send(mac, (uint8_t *) &keepalive, sizeof(keepalive));
+    MasterMsg message {MMType::KEEPALIVE};
+    esp_now_send(mac, (uint8_t *) &message, sizeof(message));
 }
 
 
-void on_data_recv(uint8_t *mac, uint8_t *incomingData, uint8_t len) {
+void on_data_recv(uint8_t *mac, uint8_t *incoming_data, uint8_t len) {
     // received from slave
     SlaveMsg message;
-    memcpy(&message, incomingData, sizeof(message));
+    memcpy(&message, incoming_data, sizeof(message));
 
     switch (message.type) {
-        case SMType::PAIR:
+        case SMType::PAIR_ME_PLZ:
             confirm_pairing(mac);
-
-        default:
             break;
     }
 }
 
 
+//void connect_to_slave(uint8_t *mac) {
+//    MasterMsg message {MMType::CONNECT};
+//    esp_now_send(mac, (uint8_t *) &message, sizeof(message));
+//}
+
+
 void init_display() {
-    Wire.begin(2,0);
+    Wire.begin(2, 0);
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     display.display();
     delay(500);
@@ -100,6 +105,8 @@ void init_display() {
 void init_wifi() {
     WiFi.mode(WIFI_STA);
     esp_now_init();
+//  pinMode(LED_BUILTIN, OUTPUT);
+//  digitalWrite(LED_BUILTIN, HIGH);
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     esp_now_register_recv_cb(on_data_recv);
 }
@@ -116,7 +123,9 @@ void loop() {
 
     if (elapsed > keepalive_delay) {
         display_macs();
-        send_keepalive(nullptr);
+
+        uint8_t *device = (connected ? connected_address : nullptr);
+        send_keepalive(device);
 
         last_time = millis();
     }
