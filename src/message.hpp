@@ -11,6 +11,7 @@ enum class MasterMessage: char {
 
 enum class SlaveMessage: char {
     BROADCAST,
+    HELLOWORLD
 };
 
 
