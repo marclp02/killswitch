@@ -1,22 +1,17 @@
-#include <Arduino.h>
+#include <stdint.h>
 
 
-enum class SMType: uint8_t {
-    PAIR_ME_PLZ,
-};
 
-
-enum class MMType: uint8_t {
-    I_PAIRED_YOU,
+enum class MasterMessage: char {
+    DISABLE,
     KEEPALIVE,
+    BEEP
 };
 
 
-struct SlaveMsg {
-    SMType type;
+enum class SlaveMessage: char {
+    BROADCAST,
 };
 
 
-struct MasterMsg {
-    MMType type;
-};
+#define MSG_SIZE sizeof(MasterMessage)

@@ -1,117 +1,116 @@
-#include "message.hpp"
-
+#include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
 
-enum SlaveStatus: uint8_t {
-    BROADCASTING,
-    BEEP,
-    PAIRED,
-    ENABLED,
-    DISABLED
-}
-status = BROADCASTING;
+#include "utils.hpp"
+#include "message.hpp"
 
 
 
-struct Timer {
-    const unsigned long PAIRING_DELAY = 500;
-    const unsigned long KEEPALIVE_DELAY = 1000;
 
-
-    unsigned long last_time = 0;
-
-    bool now_is_time(unsigned long delay) {
-        unsigned long elapsed = millis() - last_time;
-        return elapsed > delay;
-    }
-
-    void update() {
-        last_time = millis();
-    }
+enum class State: char {
+   BROADCAST,
+   DISABLED,
+   ENABLED
 };
 
 
+
+
+enum Timings: unsigned long {
+    BROADCAST_DELAY = 500,
+    KEEPALIVE_DELAY = 1000,
+
+    DISABLED_TIMEOUT = 5000,
+
+    ENABLED_TIMEOUT  = 100,
+    ENABLED_COOLDOWN = 1000
+};
+
+
+
+
+
+State state;
 Timer timer;
-unsigned long pairing_delay = 500;
-unsigned long keepalive_delay = 1000;
+MasterMessage last_message;
 
 
 
-uint8_t broadcast_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+void recv_callback(uint8_t *mac, uint8_t *data, uint8_t len) {
+    memcpy(&last_message, data, MSG_SIZE);
 
-
-
-
-void blink(uint8_t dt = 200) {
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(dt);
-    digitalWrite(LED_BUILTIN, HIGH);
-}
-
-
-void on_data_recv(uint8_t *mac, uint8_t *incoming_data, uint8_t len) {
-    // received from master
-    MasterMsg message;
-    memcpy(&message, incoming_data, sizeof(message));
-
-    switch (message.type) {
-        case MMType::I_PAIRED_YOU:
-            status = PAIRED;
+    switch (last_message) {
+        case MasterMessage::DISABLE:
+            state = State::DISABLED;
             break;
 
-        case MMType::KEEPALIVE:
-            status = ENABLED;
+        case MasterMessage::KEEPALIVE:
+            state = State::ENABLED;
+            break;
+
+        case MasterMessage::BEEP:
+            // TODO
             break;
     }
-}
 
-
-void init_wifi() {
-    WiFi.mode(WIFI_STA);
-    esp_now_init();
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, HIGH);
-    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-    esp_now_register_recv_cb(on_data_recv);
+    timer.update();
 }
 
 
 
 void setup() {
-    init_wifi();
+    /*  init WiFi   */
+    WiFi.mode(WIFI_STA);
+    esp_now_init();
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
+    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+    esp_now_register_recv_cb(recv_callback);
+
+    /*  init slave state    */
+    state = State::BROADCAST;
 }
 
 
-void try_pairing() {
-    SlaveMsg pairing {SMType::PAIR_ME_PLZ};
-    esp_now_send(broadcast_address, (uint8_t *) &pairing, sizeof(pairing));
-    blink(200);
+
+/* state handlers */
+
+
+
+void handle_broadcast_state() {
+    SlaveMessage message = SlaveMessage::BROADCAST;
+    esp_now_send(broadcast_address, (uint8_t *) &message, MSG_SIZE);
 }
 
 
 
-void handle_broadcasting();
+void handle_disabled_state() {
+    // TODO
+}
+
+
+
+void handle_enabled_state() {
+    if (timer.time_passed())
+    // TODO
+}
 
 
 
 void loop() {
-    void (*handle_fn)(void);
-    unsigned long delay = 0;
-
-    switch (status) {
-        case BROADCASTING:
-            handle_fn = handle_broadcasting;
-            delay = keepalive_delay;
+    switch (state) {
+        case State::BROADCAST:
+            handle_broadcast_state();
             break;
 
-        default:
+        case State::DISABLED:
+            handle_disabled_state();
             break;
-    }
 
-    if (timer.now_is_time(delay)) {
-        handle_fn();
-        timer.update();
+        case State::ENABLED:
+            handle_enabled_state();
+            break;
     }
 }
