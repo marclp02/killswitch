@@ -34,9 +34,10 @@ enum Timings: unsigned long {
 
 State state;
 Timer timer;
-MasterMessage last_message;
+Message last_message;
+
 bool got_new_message = false;
-uint8_t master_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};   // CHANGE IT!!!
+uint8_t master_addr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};   // CHANGE IT!!!
 
 
 
@@ -47,6 +48,11 @@ void beep();
 
 void recv_callback(uint8_t *mac, uint8_t *data, uint8_t len) {
     memcpy(&last_message, data, MSG_SIZE);
+
+    if (last_message.sender == Message::FROM_SLAVE)
+        return;
+
+    memcpy(master_addr, mac, sizeof(master_addr));
     got_new_message = true;
 }
 
@@ -76,7 +82,7 @@ void setup() {
 
 void handle_broadcast_state() {
     if (timer.time_passed(BROADCAST_DELAY)) {
-        SlaveMessage message = SlaveMessage::BROADCAST;
+        Message message {Message::FROM_SLAVE, Message::BROADCAST};
         esp_now_send(broadcast_address, (uint8_t *) &message, MSG_SIZE);
         timer.update();
     }
@@ -84,19 +90,19 @@ void handle_broadcast_state() {
     if (!got_new_message)
         return;
 
-    switch (last_message) {
-        case MasterMessage::DISABLE:
+    switch (last_message.type) {
+        case Message::DISABLE:
             state = State::DISABLED;
             timer.update();
             break;
 
-        case MasterMessage::KEEPALIVE:
-
-            break;
-
-        case MasterMessage::BEEP:
+        case Message::BEEP:
             beep();
             break;
+
+        default:
+            // ERROR I GUESS ?
+            return;
     }
 }
 
@@ -112,12 +118,8 @@ void handle_disabled_state() {
     if (!got_new_message)
         return;
 
-    switch (last_message) {
-        case MasterMessage::DISABLE:
-            // ERROR I GUESS ?
-            break;
-
-        case MasterMessage::KEEPALIVE:
+    switch (last_message.type) {
+        case Message::KEEPALIVE:
             if (timer.time_passed(ENABLED_COOLDOWN)) {
                 timer.update();
                 state = State::ENABLED;
@@ -125,8 +127,12 @@ void handle_disabled_state() {
 
             break;
 
-        case MasterMessage::BEEP:
+        case Message::BEEP:
             beep();
+            break;
+
+        default:
+            // ERROR I GUESS ?
             break;
     }
 }
@@ -142,25 +148,25 @@ void handle_enabled_state() {
 
 
     if (timer.time_passed(KEEPALIVE_DELAY)) {
-        SlaveMessage message = SlaveMessage::HELLOWORLD;
-        esp_now_send(master_address, (uint8_t *) &message, MSG_SIZE);
+        Message message {Message::FROM_SLAVE, Message::DATA};
+        esp_now_send(master_addr, (uint8_t *) &message, MSG_SIZE);
         timer.update();
     }
 
     if (!got_new_message)
         return;
     
-    switch (last_message) {
-        case MasterMessage::DISABLE:
+    switch (last_message.type) {
+        case Message::DISABLE:
             state = State::DISABLED;
             break;
 
-        case MasterMessage::KEEPALIVE:
-            // ???
+        case Message::BEEP:
+            beep();
             break;
 
-        case MasterMessage::BEEP:
-            beep();
+        default:
+            // ERROR I GUESS ?
             break;
     }
 }

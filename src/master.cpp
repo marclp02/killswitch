@@ -1,4 +1,5 @@
 #include "message.hpp"
+#include "utils.hpp"
 
 #include <SPI.h>
 #include <Wire.h>
@@ -14,15 +15,29 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-uint8_t broadcast_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
 int n_pairs = 0;
-bool connected = false;
 uint8_t connected_address[6];
 
-unsigned long last_time = 0;
-unsigned long pairing_delay = 500;
-unsigned long keepalive_delay = 200;
+
+enum class State: char {
+    WAITING_CONN,
+    DISABLED_SLAVE,
+    ENABLED_SLAVE
+};
+
+
+enum Timings: unsigned long {
+    KEEPALIVE_DELAY = 1000,
+    PAIRING_DELAY   = 500
+};
+
+
+Timer timer;
+State state;
+Message last_message;
+
+bool got_new_message = false;
+uint8_t last_mac_addr[6];
 
 
 
@@ -49,52 +64,37 @@ void display_macs() {
 }
 
 
-void blink(uint8_t dt) {
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(dt);
-    digitalWrite(LED_BUILTIN, HIGH);
-}
-
-
-void confirm_pairing(uint8_t *mac) {
+void send_disbled_message (uint8_t *mac) {
     if (!esp_now_is_peer_exist(mac)) {
         esp_now_add_peer(mac, ESP_NOW_ROLE_COMBO, 0, nullptr, 0);
         ++n_pairs;
     }
 
-    MasterMsg message {MMType::I_PAIRED_YOU};
-    esp_now_send(mac, (uint8_t *) &message, sizeof(message)); // `mac` or `nullptr` ?
-    blink(200);
-}
-
-
-void send_keepalive(uint8_t *mac) {
-    MasterMsg message {MMType::KEEPALIVE};
+    Message message {Message::FROM_MASTER, Message::DISABLE};
     esp_now_send(mac, (uint8_t *) &message, sizeof(message));
 }
 
 
-void on_data_recv(uint8_t *mac, uint8_t *incoming_data, uint8_t len) {
-    // received from slave
-    SlaveMsg message;
-    memcpy(&message, incoming_data, sizeof(message));
-
-    switch (message.type) {
-        case SMType::PAIR_ME_PLZ:
-            confirm_pairing(mac);
-            break;
-    }
+void send_keepalive_message (uint8_t *mac) {
+    Message message {Message::FROM_MASTER, Message::KEEPALIVE};
+    esp_now_send(mac, (uint8_t *) &message, sizeof(message));
 }
 
 
-//void connect_to_slave(uint8_t *mac) {
-//    MasterMsg message {MMType::CONNECT};
-//    esp_now_send(mac, (uint8_t *) &message, sizeof(message));
-//}
+void recv_callback(uint8_t *mac, uint8_t *data, uint8_t len) {
+    memcpy(&last_message, data, MSG_SIZE);
+
+    if (last_message.sender != Message::FROM_SLAVE)
+        return;
+
+    memcpy(last_mac_addr, mac, sizeof(last_mac_addr));
+    got_new_message = true;
+}
+
 
 
 void init_display() {
-    Wire.begin(2, 0);
+    Wire.begin(4, 5);
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     display.display();
     delay(500);
@@ -105,10 +105,10 @@ void init_display() {
 void init_wifi() {
     WiFi.mode(WIFI_STA);
     esp_now_init();
-//  pinMode(LED_BUILTIN, OUTPUT);
-//  digitalWrite(LED_BUILTIN, HIGH);
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-    esp_now_register_recv_cb(on_data_recv);
+    esp_now_register_recv_cb(recv_callback);
 }
 
 
@@ -118,15 +118,48 @@ void setup() {
 }
 
 
-void loop() {
-    unsigned long elapsed = millis() - last_time;
 
-    if (elapsed > keepalive_delay) {
-        display_macs();
 
-        uint8_t *device = (connected ? connected_address : nullptr);
-        send_keepalive(device);
+/* state handlers */
 
-        last_time = millis();
+
+
+void handle_waiting_state() {
+    if (!got_new_message)
+        return;
+
+    switch (last_message.type) {
+        case Message::BROADCAST:
+            state = State::DISABLED_SLAVE;
+            send_disbled_message(last_mac_addr);
+            timer.update();
+            break;
+
+        default:
+            // ERROR I GUESS ?
+            break;
     }
+}
+
+
+void handle_disabled_state();
+void handle_enabled_state();
+
+
+void loop() {
+    switch (state) {
+        case State::WAITING_CONN:
+            handle_waiting_state();
+            break;
+
+        case State::DISABLED_SLAVE:
+            handle_disabled_state();
+            break;
+
+        case State::ENABLED_SLAVE:
+            handle_enabled_state();
+            break;
+    }
+
+    got_new_message = false;
 }

@@ -2,17 +2,32 @@
 
 
 
-enum class MasterMessage: char {
-    DISABLE,
-    KEEPALIVE,
-    BEEP
+
+struct Message {
+    constexpr static int DATASIZE = 32;
+    
+    enum Sender: bool {
+        FROM_SLAVE,
+        FROM_MASTER
+    };
+
+    enum Type {
+        /* from master */
+        DISABLE,
+        KEEPALIVE,
+        BEEP,
+
+        /* from slave */
+        BROADCAST,
+        DATA
+    };
+
+    
+    Sender sender;
+    Type type;
+    char data[DATASIZE];
 };
 
 
-enum class SlaveMessage: char {
-    BROADCAST,
-    HELLOWORLD
-};
 
-
-#define MSG_SIZE sizeof(MasterMessage)
+#define MSG_SIZE sizeof(Message)
