@@ -1,172 +1,196 @@
-#include <Arduino.h>
+#include "utils.h"
+
 #include <ESP8266WiFi.h>
 #include <espnow.h>
 
 
-#include "utils.hpp"
-#include "message.hpp"
+
+
+int state = BROADCAST_STATE;
+unsigned long last_time = 0;
+
+Packet last_packet;
+bool got_new_packet = false;
+
+uint8_t master_addr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // TODO: change it to real master mac address!
 
 
 
 
-enum class State: char {
-   BROADCAST,
-   DISABLED,
-   ENABLED
-};
+void beep() {
 
-
-
-
-enum Timings: unsigned long {
-    BROADCAST_DELAY = 500,
-    KEEPALIVE_DELAY = 1000,
-
-    DISABLED_TIMEOUT = 5000,
-
-    ENABLED_TIMEOUT  = 100,
-    ENABLED_COOLDOWN = 1000
-};
-
-
-
-
-
-State state;
-Timer timer;
-Message last_message;
-
-bool got_new_message = false;
-uint8_t master_addr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};   // CHANGE IT!!!
-
-
-
-void beep();
-
-
-
-
-void recv_callback(uint8_t *mac, uint8_t *data, uint8_t len) {
-    memcpy(&last_message, data, MSG_SIZE);
-
-    if (last_message.sender == Message::FROM_SLAVE)
-        return;
-
-    memcpy(master_addr, mac, sizeof(master_addr));
-    got_new_message = true;
 }
+
+
+
+
+void send_broadcast_packet() {
+    Packet packet {BROADCAST_PACK};
+    esp_now_send(BROADCAST_ADDR, (uint8_t *) &packet, PACKSIZE);
+}
+
+
+
+
+void send_reconn_packet() {
+    Packet packet {RECONN_PACK};
+    esp_now_send(master_addr, (uint8_t *) &packet, PACKSIZE);
+}
+
+
+
+
+void recv_callback (uint8_t *addr, uint8_t *in_data, uint8_t len) {
+    // be sure to recieve packet from correct device
+    if (eqaddr(addr, master_addr)) {
+        got_new_packet = true;
+        memcpy(&last_packet, in_data, PACKSIZE);
+    }
+}
+
 
 
 
 void setup() {
-    /*  init WiFi   */
-    WiFi.mode(WIFI_STA);
-    esp_now_init();
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH);
+
+    WiFi.mode(WIFI_STA);
+    esp_now_init();
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     esp_now_register_recv_cb(recv_callback);
-
-    /*  init slave state    */
-    state = State::BROADCAST;
-}
-
-
-
-/* state handlers */
-
-
+};
 
 
 
 
 void handle_broadcast_state() {
-    if (timer.time_passed(BROADCAST_DELAY)) {
-        Message message {Message::FROM_SLAVE, Message::BROADCAST};
-        esp_now_send(broadcast_address, (uint8_t *) &message, MSG_SIZE);
-        timer.update();
+    unsigned long curr_time = millis();
+    unsigned long elapsed = curr_time - last_time;
+
+
+    if (elapsed > BROADCAST_DELAY) {
+        send_broadcast_packet();
+        last_time = curr_time;
     }
 
-    if (!got_new_message)
+    
+    if (!got_new_packet)
         return;
 
-    switch (last_message.type) {
-        case Message::DISABLE:
-            state = State::DISABLED;
-            timer.update();
+    
+    switch (last_packet.type) {
+        case DISARM_PACK:
+            state = DISARMED_STATE;
+            last_time = curr_time;
             break;
 
-        case Message::BEEP:
+        case BEEP_PACK:
             beep();
             break;
-
-        default:
-            // ERROR I GUESS ?
-            return;
     }
 }
 
 
 
-void handle_disabled_state() {
-    if (timer.time_passed(DISABLED_TIMEOUT)) {
-        state = State::BROADCAST;
-        timer.update();
+
+void handle_disarmed_state() {
+    unsigned long curr_time = millis();
+    unsigned long elapsed = curr_time - last_time;
+
+
+    if (elapsed > KEEPALIVE_TIMEOUT) {
+        state = RECONN_STATE;
+        last_time = curr_time;
         return;
     }
 
-    if (!got_new_message)
+    
+    if (!got_new_packet)
         return;
 
-    switch (last_message.type) {
-        case Message::KEEPALIVE:
-            if (timer.time_passed(ENABLED_COOLDOWN)) {
-                timer.update();
-                state = State::ENABLED;
+
+    switch (last_packet.type) {
+        case ARM_PACK:
+            if (elapsed > ARM_COOLDOWN) {
+                state = ARMED_STATE;
+                last_time = curr_time;
             }
 
             break;
 
-        case Message::BEEP:
-            beep();
+        case KEEPALIVE_PACK:
+            last_time = curr_time;
             break;
 
-        default:
-            // ERROR I GUESS ?
+        case BEEP_PACK:
+            beep();
             break;
     }
 }
 
 
 
-void handle_enabled_state() {
-    if (timer.time_passed(ENABLED_TIMEOUT)) {
-        state = State::DISABLED;
-        timer.update();
+
+void handle_armed_state() {
+    unsigned long curr_time = millis();
+    unsigned long elapsed = curr_time - last_time;
+
+    if (elapsed > KEEPALIVE_TIMEOUT) {
+        state = RECONN_STATE;
+        curr_time = last_time;
         return;
     }
 
 
-    if (timer.time_passed(KEEPALIVE_DELAY)) {
-        Message message {Message::FROM_SLAVE, Message::DATA};
-        esp_now_send(master_addr, (uint8_t *) &message, MSG_SIZE);
-        timer.update();
-    }
-
-    if (!got_new_message)
+    if (!got_new_packet)
         return;
-    
-    switch (last_message.type) {
-        case Message::DISABLE:
-            state = State::DISABLED;
+
+
+    switch (last_packet.type) {
+        case DISARM_PACK:
+            state = DISARMED_STATE;
             break;
 
-        case Message::BEEP:
+        case KEEPALIVE_PACK:
+            last_time = curr_time;
+            break;
+    }
+}
+
+
+
+void handle_reconn_state() {
+    unsigned long curr_time = millis();
+    unsigned long elapsed = curr_time - last_time;
+
+
+    // something wrong with time for sure
+    if (elapsed > RECONN_TIMEOUT) {
+        state = BROADCAST_STATE;
+        last_time = curr_time;
+        return;
+    }
+
+
+    if (elapsed > RECONN_DELAY) {
+        send_reconn_packet();
+        last_time = curr_time;
+    }
+
+
+    if (!got_new_packet)
+        return;
+
+
+    switch (last_packet.type) {
+        case RECONN_PACK:
+            state = DISARMED_STATE;
+            last_time = curr_time;
+            break;
+
+        case BEEP_PACK:
             beep();
-            break;
-
-        default:
-            // ERROR I GUESS ?
             break;
     }
 }
@@ -175,18 +199,22 @@ void handle_enabled_state() {
 
 void loop() {
     switch (state) {
-        case State::BROADCAST:
+        case BROADCAST_STATE:
             handle_broadcast_state();
             break;
 
-        case State::DISABLED:
-            handle_disabled_state();
+        case DISARMED_STATE:
+            handle_disarmed_state();
             break;
 
-        case State::ENABLED:
-            handle_enabled_state();
+        case ARMED_STATE:
+            handle_armed_state();
+            break;
+
+        case RECONN_STATE:
+            handle_reconn_state();
             break;
     }
 
-    got_new_message = false;
+    got_new_packet = false;
 }
