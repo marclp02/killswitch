@@ -1,32 +1,35 @@
-#include "message.hpp"
+#include "utils.h"
+
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <espnow.h>
 
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
 
-#include <ESP8266WiFi.h>
-#include <espnow.h>
+#define undefined_slave() eqaddr(slave_addr, BROADCAST_ADDR)
 
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET     1
 
+
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-uint8_t broadcast_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
 int n_pairs = 0;
-bool connected = false;
-uint8_t connected_address[6];
 
+
+Packet last_packet;
+bool got_new_packet = false;
 unsigned long last_time = 0;
-unsigned long pairing_delay = 500;
-unsigned long keepalive_delay = 200;
+
+uint8_t last_addr[ADDRSIZE];
+uint8_t slave_addr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 
-
-void display_macs() {
+/*
+void display_addrs() {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
@@ -47,86 +50,116 @@ void display_macs() {
         display.display();
     }
 }
+*/
 
 
-void blink(uint8_t dt) {
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(dt);
-    digitalWrite(LED_BUILTIN, HIGH);
+
+void display_addrs() {
+    for (int i = 0; i < n_pairs; ++i) {
+        u8 *ptr = esp_now_fetch_peer(i == 0);
+
+        for (int j = 0; j < 6; ++j) {
+            u8 ch = *(ptr + j);
+            Serial.print(ch, HEX);
+
+            if (j < 5)
+                Serial.print(':');
+        }
+
+        Serial.println();
+    }
 }
 
 
-void confirm_pairing(uint8_t *mac) {
-    if (!esp_now_is_peer_exist(mac)) {
-        esp_now_add_peer(mac, ESP_NOW_ROLE_COMBO, 0, nullptr, 0);
-        ++n_pairs;
+
+void beep() {
+    
+}
+
+
+
+
+void recv_callback (uint8_t *addr, uint8_t *in_data, uint8_t len) {
+    memcpy(&last_packet, in_data, PACKSIZE);
+    memcpy(last_addr, addr, ADDRSIZE);
+    
+    if (undefined_slave() || eqaddr(addr, slave_addr))
+        got_new_packet = true;
+}
+
+
+
+
+void setup() {
+    Wire.begin(4, 5);
+    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    display.display();
+    delay(500);
+    display.clearDisplay();
+
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
+
+    WiFi.mode(WIFI_STA);
+    esp_now_init();
+    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+    esp_now_register_recv_cb(recv_callback);
+
+    Serial.begin(9600);
+    while (!Serial) {}
+}
+
+
+
+
+// TODO
+// display reset here !!!
+void handle_undef_slave() {
+    unsigned long curr_time = millis();
+    unsigned long elapsed = curr_time - last_time;
+
+    if (elapsed > DISPLAY_DELAY) {
+        display_addrs();
+        last_time = curr_time;
     }
 
-    MasterMsg message {MMType::I_PAIRED_YOU};
-    esp_now_send(mac, (uint8_t *) &message, sizeof(message)); // `mac` or `nullptr` ?
-    blink(200);
-}
+    // maybe choose slave
+
+    if (!got_new_packet)
+        return;
 
 
-void send_keepalive(uint8_t *mac) {
-    MasterMsg message {MMType::KEEPALIVE};
-    esp_now_send(mac, (uint8_t *) &message, sizeof(message));
-}
+    switch (last_packet.type) {
+        case BROADCAST_PACK:
+            esp_now_add_peer(last_addr, ESP_NOW_ROLE_COMBO, 0, nullptr, 0);
+            ++n_pairs;
+            break;
 
-
-void on_data_recv(uint8_t *mac, uint8_t *incoming_data, uint8_t len) {
-    // received from slave
-    SlaveMsg message;
-    memcpy(&message, incoming_data, sizeof(message));
-
-    switch (message.type) {
-        case SMType::PAIR_ME_PLZ:
-            confirm_pairing(mac);
+        case BEEP_PACK:
+            beep();
             break;
     }
 }
 
 
-//void connect_to_slave(uint8_t *mac) {
-//    MasterMsg message {MMType::CONNECT};
-//    esp_now_send(mac, (uint8_t *) &message, sizeof(message));
-//}
 
-
-void init_display() {
-    Wire.begin(2, 0);
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-    display.display();
-    delay(500);
-    display.clearDisplay();
+void handle_reconn() {
+    Packet packet {RECONN_PACK};
+    esp_now_send(slave_addr, (uint8_t *) &packet, PACKSIZE);
 }
 
-
-void init_wifi() {
-    WiFi.mode(WIFI_STA);
-    esp_now_init();
-//  pinMode(LED_BUILTIN, OUTPUT);
-//  digitalWrite(LED_BUILTIN, HIGH);
-    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-    esp_now_register_recv_cb(on_data_recv);
-}
-
-
-void setup() {
-    init_display();
-    init_wifi();
-}
 
 
 void loop() {
-    unsigned long elapsed = millis() - last_time;
-
-    if (elapsed > keepalive_delay) {
-        display_macs();
-
-        uint8_t *device = (connected ? connected_address : nullptr);
-        send_keepalive(device);
-
-        last_time = millis();
+    if (undefined_slave()) {
+        handle_undef_slave();
+    } else if (got_new_packet && last_packet.type == RECONN_PACK) {
+        handle_reconn();
     }
+
+
+    // button interupts ???
+
+    got_new_packet = false;
 }
