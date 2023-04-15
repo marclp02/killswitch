@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
 
@@ -23,11 +24,14 @@ unsigned long last_button_press = 0;
 unsigned long debounce_delay = 15;
 
 void IRAM_ATTR isr_up() {
-    if (millis() - last_button_press > debounce_delay) {
-        button.UP = 1 - button.UP;
-        change = true;
-        last_button_press = millis();
-    }
+//    if (millis() - last_button_press > debounce_delay) {
+//        button.UP = 1 - button.UP;
+//        change = true;
+//        last_button_press = millis();
+//    }
+
+    change = true;
+    button.UP = 1 - button.UP;
 }
 
 void IRAM_ATTR isr_reset_debounce() {
@@ -35,19 +39,25 @@ void IRAM_ATTR isr_reset_debounce() {
 }
 
 void IRAM_ATTR isr_middle() {
-    if (millis() - last_button_press > debounce_delay) {
-        button.MIDDLE = 1 - button.MIDDLE;
-        change = true;
-        last_button_press = millis();
-    }
+//    if (millis() - last_button_press > debounce_delay) {
+//        button.MIDDLE = 1 - button.MIDDLE;
+//        change = true;
+//        last_button_press = millis();
+//    }
+
+    change = true;
+    button.MIDDLE = 1 - button.MIDDLE;
 }
 
 void IRAM_ATTR isr_down() {
-    if (millis() - last_button_press > debounce_delay) {
-        button.DOWN = 1 - button.DOWN;
-        change = true;
-        last_button_press = millis();
-    }
+//    if (millis() - last_button_press > debounce_delay) {
+//        button.DOWN = 1 - button.DOWN;
+//        change = true;
+//        last_button_press = millis();
+//    }
+    
+    change = true;
+    button.DOWN = 1 - button.DOWN;
 }
 
 void setup() {
@@ -72,13 +82,36 @@ void setup() {
     display.clearDisplay();
 }
 
+
+unsigned long last_time = 0;
+int counter = 1;
+
 void loop() {
+//    if (change) {
+//        Serial.print(button.UP);
+//        Serial.print(" ");
+//        Serial.print(button.MIDDLE);
+//        Serial.print(" ");
+//        Serial.println(button.DOWN);
+//        change = false;
+//    }
+
+    unsigned long curr_time = millis();
+    unsigned long elapsed = curr_time - last_time;
+
     if (change) {
-        Serial.print(button.UP);
-        Serial.print(" ");
-        Serial.print(button.MIDDLE);
-        Serial.print(" ");
-        Serial.println(button.DOWN);
+        if (elapsed > 200) {
+            Serial.println(counter++);
+            Serial.print(button.UP);
+            Serial.print(" ");
+            Serial.print(button.MIDDLE);
+            Serial.print(" ");
+            Serial.println(button.DOWN);
+            Serial.println();
+
+            last_time = curr_time;
+        }
+
         change = false;
     }
 }
