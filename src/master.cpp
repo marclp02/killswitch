@@ -47,8 +47,9 @@ void display_addrs() {
         }
 
         display.println();
-        display.display();
     }
+
+    display.display();
 }
 
 
