@@ -28,7 +28,7 @@ uint8_t last_addr[ADDRSIZE];
 uint8_t slave_addr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 
-/*
+
 void display_addrs() {
     display.clearDisplay();
     display.setTextSize(1);
@@ -50,11 +50,23 @@ void display_addrs() {
         display.display();
     }
 }
-*/
 
 
 
-void display_addrs() {
+
+void clear_esp_list() {
+    for (int i = 0; i < n_pairs; ++i) {
+        u8 *ptr = esp_now_fetch_peer(true);
+        esp_now_del_peer(ptr);
+    }
+
+    n_pairs = 0;
+}
+
+
+
+
+void print_addrs() {
     for (int i = 0; i < n_pairs; ++i) {
         u8 *ptr = esp_now_fetch_peer(i == 0);
 
@@ -68,6 +80,8 @@ void display_addrs() {
 
         Serial.println();
     }
+
+    Serial.println();
 }
 
 
@@ -106,7 +120,7 @@ void setup() {
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     esp_now_register_recv_cb(recv_callback);
 
-    Serial.begin(9600);
+    Serial.begin(115200);
     while (!Serial) {}
 }
 
@@ -114,16 +128,17 @@ void setup() {
 
 
 // TODO
-// display reset here !!!
 void handle_undef_slave() {
     unsigned long curr_time = millis();
     unsigned long elapsed = curr_time - last_time;
 
     if (elapsed > DISPLAY_DELAY) {
         display_addrs();
+        print_addrs();
+        clear_esp_list();
         last_time = curr_time;
     }
-
+    
     // maybe choose slave
 
     if (!got_new_packet)
@@ -132,8 +147,11 @@ void handle_undef_slave() {
 
     switch (last_packet.type) {
         case BROADCAST_PACK:
-            esp_now_add_peer(last_addr, ESP_NOW_ROLE_COMBO, 0, nullptr, 0);
-            ++n_pairs;
+            if (!esp_now_is_peer_exist(last_addr)) {
+                esp_now_add_peer(last_addr, ESP_NOW_ROLE_COMBO, 0, nullptr, 0);
+                ++n_pairs;
+            }
+
             break;
 
         case BEEP_PACK:
@@ -152,6 +170,8 @@ void handle_reconn() {
 
 
 void loop() {
+    // somehow modify slave to be undefined
+    // after reconn timeout
     if (undefined_slave()) {
         handle_undef_slave();
     } else if (got_new_packet && last_packet.type == RECONN_PACK) {
