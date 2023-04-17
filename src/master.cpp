@@ -18,8 +18,7 @@
 
 enum class State {
     SEARCH,
-    SEND,
-    RECONNECT
+    SEND
 };
 
 enum class Button {
@@ -37,13 +36,16 @@ State state = State::SEARCH;
 
 
 bool update = true;
+int animation_counter = 0;
+
+
 bool keepalive = false;
 
 uint8_t slave_addr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-bool peer_found = false;
 int peer_chosen = 0;
 int peer_count = 0;
 
+bool send_succes = true;
 
 unsigned long last_time = 0;
 
@@ -60,7 +62,7 @@ void recv_callback (uint8_t *addr, uint8_t *in_data, uint8_t len) {
 }
 
 void sent_callback(uint8_t *addr, uint8_t status) {
-    if (status != )
+    send_succes = (status == 0);
 }
 
 
@@ -99,6 +101,47 @@ void IRAM_ATTR isr_kill_up() {
     }
 }
 
+void search_handle_buttons() {
+    switch (button) {
+        case Button::NONE:
+            break;
+        case Button::UP:
+            peer_chosen = max(peer_chosen - 1, 0);
+            break;
+        case Button::DOWN:
+            peer_chosen = min(peer_chosen + 1, peer_count);
+            break;
+        case Button::OK:
+            if (peer_count > 0) {
+                // TODO: copy chosen mac to slave_addr
+                update = true;
+                keepalive = false;
+                state = State::SEND;
+            }
+            break;
+    }
+}
+
+void send_handle_buttons() {
+    switch (button) {
+        case Button::NONE:
+        case Button::UP:
+        case Button::DOWN:
+            break;
+        case Button::OK:
+            keepalive = false;
+            state = State::SEARCH;
+            break;
+    }
+}
+
+void send_keepalive(bool val) {
+    Message message = KEEPALIVE_0;
+    if (val) {
+        message = Message::KEEPALIVE_1;
+    }
+    esp_now_send(slave_addr, (uint8_t *) &message, 1);
+}
 
 void setup() {
     // Display
@@ -116,6 +159,7 @@ void setup() {
     esp_now_init();
     esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     esp_now_register_recv_cb(recv_callback);
+    esp_now_register_send_cb(sent_callback);
 
     // Seial
     Serial.begin(115200);
@@ -132,53 +176,39 @@ void setup() {
     attachInterrupt(BUTTON_DOWN, isr_down, FALLING);
 
     // Falling and Rising for Kill button
+    // TODO: function to set keepalive based on kill_is_pressed
     attachInterrupt(BUTTON_KILL, isr_kill_down, FALLING);
     attachInterrupt(BUTTON_KILL, isr_kill_up, RISING);
 
 }
 
-
-
-
 void loop() {
     unsigned long elapsed = millis() - last_time;
-
-    if (state == State::SEARCH && (update || button != Button::NONE)) {
-        if (button == Button::UP) {
-            peer_chosen = max(peer_chosen - 1, 0);
-        }
-        else if (button == Button::DOWN) {
-            peer_chosen = min(peer_chosen + 1, peer_count - 1);
-        }
-        else if (button == Button::OK && peer_count > 0) {
-
-            for (int i = 1; i < peer_chosen; ++i) {
-
+    switch (state) {
+        case State::SEARCH:
+            search_handle_buttons();
+            break;
+        case State::SEND:
+            send_handle_buttons();
+            if (!send_succes) {
+                keepalive = false;
             }
-            memccpy(slave_addr, )
-            // Change to paired
-            update = true;
-            keepalive = false;
-            state = State::SEND;
-        }
-        // Update screen
+            if (elapsed > KEEPALIVE_INTERVAL) {
+                send_keepalive(keepalive);
+                last_time = millis();
+                update = true;
+            }
+            break;
     }
+    if (update) {
+        animation_counter = (animation_counter + 1) % 16;
+        // TODO: update screen
 
-    if (state == State::SEND) {
-        if (elapsed > KEEPALIVE_INTERVAL) {
-            // Send KeepAlive 0 or 1
-        }
-        if (update) {
-            // Show instructions on screen
-            // Register callback
-            // Register Interrupts
-        }
+        // Search: diplays list of found peers
+
+        // Send:
+        //  - ON: Displays peer's mac, ON and a nice animation
+        //  - OFF Displays peer's mac, OFF and a nice animation
+        //  - RECONNECT: Displays peer's mac, "CONNECTING" and progress bar
     }
-
-    if (state == State::RECONNECT) {
-        if (elapsed > KEEPALIVE_INTERVAL) {
-            // Send KeepAlive 0
-        }
-    }
-
 }
