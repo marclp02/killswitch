@@ -86,13 +86,17 @@ void IRAM_ATTR isr_down() {
 }
 
 void IRAM_ATTR isr_kill_down() {
-    kill_is_pressed = true;
-    update = true;
+    if (millis() - last_button_press > DEBOUNCE_DELAY) {
+        kill_is_pressed = true;
+        update = true;
+    }
 }
 
 void IRAM_ATTR isr_kill_up() {
-    kill_is_pressed = false;
-    update = true;
+    if (millis() - last_button_press > DEBOUNCE_DELAY) {
+        kill_is_pressed = false;
+        update = true;
+    }
 }
 
 
@@ -120,6 +124,7 @@ void setup() {
     pinMode(BUTTON_UP, INPUT_PULLUP);
     pinMode(BUTTON_OK, INPUT_PULLUP);
     pinMode(BUTTON_DOWN, INPUT_PULLUP);
+    pinMode(BUTTON_KILL, INPUT_PULLUP);
 
     // Interrupts
     attachInterrupt(BUTTON_UP, isr_up, FALLING);
@@ -127,8 +132,8 @@ void setup() {
     attachInterrupt(BUTTON_DOWN, isr_down, FALLING);
 
     // Falling and Rising for Kill button
-    //attachInterrupt(BUTTON_KILL, isr_kill_down, FALLING);
-    //attachInterrupt(BUTTON_KILL, isr_kill_up, RISING);
+    attachInterrupt(BUTTON_KILL, isr_kill_down, FALLING);
+    attachInterrupt(BUTTON_KILL, isr_kill_up, RISING);
 
 }
 
@@ -146,7 +151,11 @@ void loop() {
             peer_chosen = min(peer_chosen + 1, peer_count - 1);
         }
         else if (button == Button::OK && peer_count > 0) {
-            // Set peer
+
+            for (int i = 1; i < peer_chosen; ++i) {
+
+            }
+            memccpy(slave_addr, )
             // Change to paired
             update = true;
             keepalive = false;
