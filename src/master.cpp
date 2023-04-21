@@ -283,8 +283,8 @@ void update_display_send() {
     Serial.println("DEUG 2");
     // ON
     display.clearDisplay();
-    display.setCursor(0, 0);
     display.setTextSize(1);
+    display.setCursor(0, 0);
     display.println("KILLSWITCH v0.1a");
     display.print("SLAVE: ");
     display.printf("%02d:%02d:%02d:%02d:%02d:%02d", slave_addr[0], slave_addr[1], slave_addr[2], slave_addr[3], slave_addr[4], slave_addr[5]);
@@ -306,12 +306,12 @@ void update_display_send() {
     else if (send_succes && !keepalive) {
         display.setCursor(5, 4);
         display.setTextSize(2);
-        display.print("ON");
+        display.print("OFF");
     }
     else if (!send_succes) {
         display.setCursor(5, 3);
         display.setTextSize(2);
-        display.print("ON");
+        display.print("RECON");
     }
 
     display.display();
