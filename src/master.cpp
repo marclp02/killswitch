@@ -41,7 +41,7 @@ int animation_counter = 0;
 
 bool keepalive = false;
 
-uint8_t slave_addr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t slave_addr[] = {0x40, 0xF5, 0x20, 0x25, 0x32, 0x64};
 int peer_chosen = 0;
 int peer_count = 0;
 
@@ -53,8 +53,11 @@ Button button = Button::NONE;
 bool kill_is_pressed = false;
 unsigned long last_button_press = 0;
 
+void serial_print_addrs();
+
 void recv_callback (uint8_t *addr, uint8_t *in_data, uint8_t len) {
     if (in_data[0] == BROADCAST && !esp_now_is_peer_exist(addr)) {
+        serial_print_addrs();
         esp_now_add_peer(addr, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
         peer_count++;
         update = true;
@@ -102,13 +105,18 @@ void IRAM_ATTR isr_kill_up() {
 }
 
 
-void choose_slave() {
-    uint8_t *addr;
+bool choose_slave() {
+    uint8_t *addr = NULL;
 
     for (int i = 0; i < peer_chosen; ++i)
         addr = esp_now_fetch_peer(i == 0);
 
-    memcpy(slave_addr, addr, 6);
+    if (addr != NULL) {
+        memcpy(slave_addr, addr, 6);
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -117,18 +125,22 @@ void search_handle_buttons() {
         case Button::NONE:
             break;
         case Button::UP:
+            update = true;
             peer_chosen = max(peer_chosen - 1, 0);
             break;
         case Button::DOWN:
-            peer_chosen = min(peer_chosen + 1, peer_count);
+            update = true;
+            peer_chosen = min(peer_chosen + 1, peer_count - 1);
             break;
         case Button::OK:
-            if (peer_count > 0) {
-                choose_slave();
+            update = true;
+            if (peer_count > 0 && choose_slave()) {
+                Serial.println("DEUG");
                 update = true;
                 keepalive = false;
                 state = State::SEND;
             }
+
             break;
     }
 }
@@ -218,13 +230,12 @@ void pretty_addr(uint8_t *addr, char *buf) {
 
 void update_display_search() {
     display.clearDisplay();
-    display.setTextSize(2);
+    display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
     display.println("SELECT SLAVE:");
-    display.setTextSize(1);
 
-    display.println("--------------------------");
+    display.println("---------------------");
 
     for (int i = 0; i < peer_count; ++i) {
         uint8_t *addr = esp_now_fetch_peer(i == 0);
@@ -234,17 +245,42 @@ void update_display_search() {
         else
             display.print("[ ] ");
 
-        char buf[20];
-        pretty_addr(addr, buf);
+        for (int j = 0; j < 6; ++j) {
+            display.print(addr[j], HEX);
 
-        display.println(buf);
+            if (j < 5)
+                display.print(':');
+        }
+
+        display.println();
     }
 
     display.println();
     display.display();
 }
 
+
+void serial_print_addrs() {
+    for (int i = 0; i < peer_count; ++i) {
+        uint8_t *addr = esp_now_fetch_peer(i == 0);
+
+        if (i == peer_chosen)
+            Serial.print("[*] ");
+        else
+            Serial.print("[ ] ");
+
+        char buf[30];
+        pretty_addr(addr, buf);
+
+        Serial.println(buf);
+    }
+
+    Serial.println();
+}
+
+
 void update_display_send() {
+    Serial.println("DEUG 2");
     // ON
     display.clearDisplay();
     display.setCursor(0, 0);
@@ -277,6 +313,8 @@ void update_display_send() {
         display.setTextSize(2);
         display.print("ON");
     }
+
+    display.display();
 }
 
 
@@ -299,6 +337,7 @@ void loop() {
             }
             break;
     }
+
     if (update) {
         animation_counter = (animation_counter + 1) % 16;
         switch (state) {
@@ -309,6 +348,8 @@ void loop() {
                 update_display_send();
                 break;
         }
+
+        update = false;
 
         // TODO: update screen
 
