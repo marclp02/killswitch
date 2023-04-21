@@ -11,6 +11,7 @@ uint8_t BROADCAST_ADDR[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 
 enum Message: uint8_t {
+    NONE,
     BROADCAST,
     KEEPALIVE_0,
     KEEPALIVE_1,
