@@ -149,6 +149,7 @@ void send_handle_buttons() {
             break;
         case Button::OK:
             keepalive = false;
+            update = true;
             state = State::SEARCH;
             break;
     }
@@ -241,8 +242,10 @@ void update_display_send() {
     display.setCursor(0, 0);
     display.println("KILLSWITCH v0.1a");
     display.printf("SLAVE:");
-    for (unsigned char & i : slave_addr) {
-        display.print(i, HEX);
+    for (int j = 0; j < 6; ++j) {
+        display.print(slave_addr[j], HEX);
+        if (j < 5)
+            display.print(':');
     }
     display.println();
     display.println("---------------------");
@@ -254,15 +257,15 @@ void update_display_send() {
 
     display.setTextSize(2);
     if (send_succes && keepalive) {
-        display.setCursor(64, 32);
+        display.setCursor(64, 22);
         display.print("ON");
     }
     else if (send_succes && !keepalive) {
-        display.setCursor(64, 32);
+        display.setCursor(64, 20);
         display.print("OFF");
     }
     else if (!send_succes) {
-        display.setCursor(64, 32);
+        display.setCursor(64, 16);
         display.print("RECON");
     }
 
