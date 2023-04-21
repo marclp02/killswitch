@@ -283,6 +283,7 @@ void loop() {
             send_handle_buttons();
             if (!send_succes) {
                 keepalive = false;
+                update = true;
             }
             if (elapsed > KEEPALIVE_INTERVAL) {
                 send_keepalive(keepalive);
