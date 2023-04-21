@@ -108,7 +108,7 @@ void IRAM_ATTR isr_kill_up() {
 bool choose_slave() {
     uint8_t *addr = NULL;
 
-    for (int i = 0; i < peer_chosen; ++i)
+    for (int i = 0; i <= peer_chosen; ++i)
         addr = esp_now_fetch_peer(i == 0);
 
     if (addr != NULL) {
@@ -256,7 +256,6 @@ void update_display_search() {
     }
 
     display.println();
-    display.display();
 }
 
 
@@ -292,9 +291,6 @@ void update_display_send() {
     display.println("|                   |");
     display.println("|                   |");
     display.println("---------------------");
-    for (int i = 0; i < animation_counter; ++i) {
-        display.print("*");
-    }
 
     display.setTextSize(2);
     if (send_succes && keepalive) {
@@ -310,7 +306,6 @@ void update_display_send() {
         display.print("RECON");
     }
 
-    display.display();
 }
 
 
@@ -335,7 +330,7 @@ void loop() {
     }
 
     if (update) {
-        animation_counter = (animation_counter + 1) % 16;
+        animation_counter = (animation_counter + 1) % 21;
         switch (state) {
             case State::SEARCH:
                 update_display_search();
@@ -344,6 +339,10 @@ void loop() {
                 update_display_send();
                 break;
         }
+        for (int i = 0; i < animation_counter; ++i) {
+            display.print("*");
+        }
+        display.display();
 
         update = false;
 
