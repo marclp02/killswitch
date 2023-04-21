@@ -292,6 +292,7 @@ void loop() {
         }
          */
         display.display();
+        update = false;
     }
 
     unsigned long elapsed = millis() - last_time;
@@ -311,5 +312,5 @@ void loop() {
             break;
     }
 
-    update = false;
+    button = Button::NONE;
 }
