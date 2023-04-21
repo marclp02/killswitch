@@ -101,6 +101,17 @@ void IRAM_ATTR isr_kill_up() {
     }
 }
 
+
+void choose_slave() {
+    uint8_t *addr;
+
+    for (int i = 0; i < peer_chosen; ++i)
+        addr = esp_now_fetch_peer(i == 0);
+
+    memcpy(slave_addr, addr, 6);
+}
+
+
 void search_handle_buttons() {
     switch (button) {
         case Button::NONE:
@@ -113,7 +124,7 @@ void search_handle_buttons() {
             break;
         case Button::OK:
             if (peer_count > 0) {
-                // TODO: copy chosen mac to slave_addr
+                choose_slave();
                 update = true;
                 keepalive = false;
                 state = State::SEND;
@@ -223,15 +234,14 @@ void update_display_search() {
         else
             display.print("[ ] ");
 
-        for (int j = 0; j < 6; ++j) {
-            display.print(addr[j], HEX);
+        char buf[20];
+        pretty_addr(addr, buf);
 
-            if (j < 5)
-                display.print(':');
-        }
-
-        display.println();
+        display.println(buf);
     }
+
+    display.println();
+    display.display();
 }
 
 void update_display_send() {}
