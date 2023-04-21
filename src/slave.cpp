@@ -5,7 +5,7 @@
 
 
 #define BROADCAST_DELAY   100
-#define KEEPALIVE_TIMEOUT 100
+#define KEEPALIVE_TIMEOUT 2000
 #define ENABLE_COOLDOWN   100
 
 
@@ -56,7 +56,10 @@ void setup() {
 
 void handle_broadcast_state() {
     if (millis() - last_time > BROADCAST_DELAY) {
+        digitalWrite(LED_BUILTIN, LOW);
         send_broadcast_message();
+        delay(200);
+        digitalWrite(LED_BUILTIN, HIGH);
         last_time = millis();
     }
 
