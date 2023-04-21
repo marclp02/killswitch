@@ -7,10 +7,9 @@
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
 
-#define BUTTON_UP 14
 #define BUTTON_OK 12
-#define BUTTON_DOWN 13
-#define BUTTON_KILL 00  //TODO: Set kill button gpio pin
+#define BUTTON_NEXT 14
+#define BUTTON_KILL 13
 
 #define KEEPALIVE_INTERVAL 200
 #define DEBOUNCE_DELAY 200
@@ -188,13 +187,13 @@ void setup() {
     Serial.begin(115200);
 
     // Buttons
-    pinMode(BUTTON_UP, INPUT_PULLUP);
+    pinMode(BUTTON_NEXT, INPUT_PULLUP);
     pinMode(BUTTON_OK, INPUT_PULLUP);
     pinMode(BUTTON_DOWN, INPUT_PULLUP);
     pinMode(BUTTON_KILL, INPUT_PULLUP);
 
     // Interrupts
-    attachInterrupt(BUTTON_UP, isr_up, FALLING);
+    attachInterrupt(BUTTON_NEXT, isr_up, FALLING);
     attachInterrupt(BUTTON_OK, isr_ok, FALLING);
     attachInterrupt(BUTTON_DOWN, isr_down, FALLING);
 
