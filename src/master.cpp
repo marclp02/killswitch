@@ -280,8 +280,6 @@ void serial_print_addrs() {
 
 
 void update_display_send() {
-    Serial.println("DEUG 2");
-    // ON
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
@@ -290,27 +288,25 @@ void update_display_send() {
     display.printf("%02d:%02d:%02d:%02d:%02d:%02d", slave_addr[0], slave_addr[1], slave_addr[2], slave_addr[3], slave_addr[4], slave_addr[5]);
     display.println();
 
-    display.println("----------------");
-    display.println("|              |");
-    display.println("|              |");
-    display.println("----------------");
+    display.println("---------------------");
+    display.println("|                   |");
+    display.println("|                   |");
+    display.println("---------------------");
     for (int i = 0; i < animation_counter; ++i) {
         display.print("*");
     }
 
+    display.setTextSize(2);
     if (send_succes && keepalive) {
         display.setCursor(6, 4);
-        display.setTextSize(2);
         display.print("ON");
     }
     else if (send_succes && !keepalive) {
         display.setCursor(5, 4);
-        display.setTextSize(2);
         display.print("OFF");
     }
     else if (!send_succes) {
         display.setCursor(5, 3);
-        display.setTextSize(2);
         display.print("RECON");
     }
 
