@@ -112,7 +112,7 @@ void search_handle_buttons() {
             peer_chosen = min(peer_chosen + 1, peer_count);
             break;
         case Button::OK:
-            if (peer_count > 0) {
+            if (peer_count > 0 && peer_chosen != 0) {
                 // TODO: copy chosen mac to slave_addr
                 update = true;
                 keepalive = false;
@@ -234,7 +234,38 @@ void update_display_search() {
     }
 }
 
-void update_display_send() {}
+void update_display_send() {
+    // ON
+    display.clearDisplay();
+    display.println("KILLSWITCH v0.1a");
+    display.print("SLAVE: ");
+    display.printf("%02d:%02d:%02d:%02d:%02d:%02d", slave_addr[0], slave_addr[1], slave_addr[2], slave_addr[3], slave_addr[4], slave_addr[5]);
+    display.println();
+
+    display.println("----------------");
+    display.println("|              |");
+    display.println("|              |");
+    display.println("----------------");
+    for (int i = 0; i < animation_counter; ++i) {
+        display.print("*");
+    }
+
+    if (send_succes && keepalive) {
+        display.setCursor(6, 4);
+        display.setTextSize(2);
+        display.print("ON");
+    }
+    else if (send_succes && !keepalive) {
+        display.setCursor(5, 4);
+        display.setTextSize(2);
+        display.print("ON");
+    }
+    else if (!send_succes) {
+        display.setCursor(5, 3);
+        display.setTextSize(2);
+        display.print("ON");
+    }
+}
 
 
 
