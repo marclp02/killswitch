@@ -339,6 +339,8 @@ void loop() {
                 update_display_send();
                 break;
         }
+        display.setTextSize(1);
+        display.setCursor(0, 10);
         for (int i = 0; i < animation_counter; ++i) {
             display.print("*");
         }
