@@ -274,23 +274,6 @@ void update_display_send() {
 
 
 void loop() {
-    unsigned long elapsed = millis() - last_time;
-    switch (state) {
-        case State::SEARCH:
-            search_handle_buttons();
-            break;
-        case State::SEND:
-            send_handle_buttons();
-            if (!send_succes) {
-                keepalive = false;
-            }
-            if (elapsed > KEEPALIVE_INTERVAL) {
-                send_keepalive(keepalive);
-                last_time = millis();
-            }
-            break;
-    }
-
     if (update) {
         animation_counter = (animation_counter + 1) % 21;
         switch (state) {
@@ -309,16 +292,24 @@ void loop() {
         }
          */
         display.display();
-
-        update = false;
-
-        // TODO: update screen
-
-        // Search: diplays list of found peers
-
-        // Send:
-        //  - ON: Displays peer's mac, ON and a nice animation
-        //  - OFF Displays peer's mac, OFF and a nice animation
-        //  - RECONNECT: Displays peer's mac, "CONNECTING" and progress bar
     }
+
+    unsigned long elapsed = millis() - last_time;
+    switch (state) {
+        case State::SEARCH:
+            search_handle_buttons();
+            break;
+        case State::SEND:
+            send_handle_buttons();
+            if (!send_succes) {
+                keepalive = false;
+            }
+            if (elapsed > KEEPALIVE_INTERVAL) {
+                send_keepalive(keepalive);
+                last_time = millis();
+            }
+            break;
+    }
+
+    update = false;
 }
