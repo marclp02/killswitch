@@ -287,7 +287,6 @@ void loop() {
             if (elapsed > KEEPALIVE_INTERVAL) {
                 send_keepalive(keepalive);
                 last_time = millis();
-                update = true;
             }
             break;
     }
