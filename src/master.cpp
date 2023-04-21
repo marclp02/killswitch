@@ -182,6 +182,12 @@ void setup() {
 
 }
 
+void update_display_search() {}
+
+void update_display_send() {}
+
+
+
 void loop() {
     unsigned long elapsed = millis() - last_time;
     switch (state) {
@@ -202,6 +208,13 @@ void loop() {
     }
     if (update) {
         animation_counter = (animation_counter + 1) % 16;
+        switch (state) {
+            case State::SEARCH:
+                break;
+            case State::SEND:
+                break;
+        }
+
         // TODO: update screen
 
         // Search: diplays list of found peers
