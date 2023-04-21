@@ -112,7 +112,7 @@ void handle_enabled_state() {
             state = State::DISABLED;
             last_time = millis();
             break;
-
+            
         case KEEPALIVE_1:
             last_time = millis();
             break;
