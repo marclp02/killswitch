@@ -45,7 +45,8 @@ uint8_t slave_addr[] = {0x40, 0xF5, 0x20, 0x25, 0x32, 0x64};
 int peer_chosen = 0;
 int peer_count = 0;
 
-bool send_succes = true;
+bool send_success = true;
+bool last_send_sucess = true;
 
 unsigned long last_time = 0;
 
@@ -62,7 +63,9 @@ void recv_callback (uint8_t *addr, uint8_t *in_data, uint8_t len) {
 }
 
 void sent_callback(uint8_t *addr, uint8_t status) {
-    send_succes = (status == 0);
+    last_send_sucess = send_success;
+    send_success = (status == 0);
+    update = (send_success != last_send_sucess);
 }
 
 
@@ -256,15 +259,15 @@ void update_display_send() {
     display.println("---------------------");
 
     display.setTextSize(2);
-    if (send_succes && keepalive) {
+    if (send_success && keepalive) {
         display.setCursor(64, 22);
         display.print("ON");
     }
-    else if (send_succes && !keepalive) {
+    else if (send_success && !keepalive) {
         display.setCursor(64, 20);
         display.print("OFF");
     }
-    else if (!send_succes) {
+    else if (!send_success) {
         display.setCursor(64, 16);
         display.print("RECON");
     }
@@ -281,7 +284,7 @@ void loop() {
             break;
         case State::SEND:
             send_handle_buttons();
-            if (!send_succes) {
+            if (!send_success) {
                 keepalive = false;
                 update = true;
             }
