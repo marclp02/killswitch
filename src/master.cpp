@@ -210,8 +210,10 @@ void loop() {
         animation_counter = (animation_counter + 1) % 16;
         switch (state) {
             case State::SEARCH:
+                update_display_search();
                 break;
             case State::SEND:
+                update_display_send();
                 break;
         }
 
