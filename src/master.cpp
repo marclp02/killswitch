@@ -283,11 +283,14 @@ void update_display_send() {
     display.setTextSize(1);
     display.setCursor(0, 0);
     display.println("KILLSWITCH v0.1a");
-    display.print("SLAVE: ");
-    display.printf("%02d:%02d:%02d:%02d:%02d:%02d", slave_addr[0], slave_addr[1], slave_addr[2], slave_addr[3], slave_addr[4], slave_addr[5]);
+    display.printf("SLAVE:");
+    for (unsigned char & i : slave_addr) {
+        display.print(i, HEX);
+    }
     display.println();
-
     display.println("---------------------");
+    display.println("|                   |");
+    display.println("|                   |");
     display.println("|                   |");
     display.println("|                   |");
     display.println("---------------------");
