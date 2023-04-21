@@ -247,6 +247,8 @@ void update_display_search() {
 void update_display_send() {
     // ON
     display.clearDisplay();
+    display.setCursor(0, 0);
+    display.setTextSize(1);
     display.println("KILLSWITCH v0.1a");
     display.print("SLAVE: ");
     display.printf("%02d:%02d:%02d:%02d:%02d:%02d", slave_addr[0], slave_addr[1], slave_addr[2], slave_addr[3], slave_addr[4], slave_addr[5]);
