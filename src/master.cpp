@@ -243,26 +243,29 @@ void update_display_send() {
     display.setTextSize(1);
     display.setCursor(0, 0);
     display.println("KILLSWITCH v0.1a");
-    display.print("SLAVE: ");
-    display.printf("%02d:%02d:%02d:%02d:%02d:%02d", slave_addr[0], slave_addr[1], slave_addr[2], slave_addr[3], slave_addr[4], slave_addr[5]);
+    display.printf("SLAVE:");
+    for (unsigned char & i : slave_addr) {
+        display.print(i, HEX);
+    }
     display.println();
-
     display.println("---------------------");
+    display.println("|                   |");
+    display.println("|                   |");
     display.println("|                   |");
     display.println("|                   |");
     display.println("---------------------");
 
     display.setTextSize(2);
     if (send_succes && keepalive) {
-        display.setCursor(6, 4);
+        display.setCursor(64, 32);
         display.print("ON");
     }
     else if (send_succes && !keepalive) {
-        display.setCursor(5, 4);
+        display.setCursor(64, 32);
         display.print("OFF");
     }
     else if (!send_succes) {
-        display.setCursor(5, 3);
+        display.setCursor(64, 32);
         display.print("RECON");
     }
 
