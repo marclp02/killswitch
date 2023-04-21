@@ -53,11 +53,8 @@ Button button = Button::NONE;
 bool kill_is_pressed = false;
 unsigned long last_button_press = 0;
 
-void serial_print_addrs();
-
 void recv_callback (uint8_t *addr, uint8_t *in_data, uint8_t len) {
     if (in_data[0] == BROADCAST && !esp_now_is_peer_exist(addr)) {
-        serial_print_addrs();
         esp_now_add_peer(addr, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
         peer_count++;
         update = true;
