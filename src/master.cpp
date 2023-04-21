@@ -13,7 +13,7 @@
 #define BUTTON_KILL 00  //TODO: Set kill button gpio pin
 
 #define KEEPALIVE_INTERVAL 200
-#define DEBOUNCE_DELAY 100
+#define DEBOUNCE_DELAY 200
 
 
 enum class State {
