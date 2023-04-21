@@ -182,7 +182,57 @@ void setup() {
 
 }
 
-void update_display_search() {}
+char hexdigit(uint8_t byte) {
+    if (byte >= 10)
+        return (byte - 10) + 'a';
+
+    return byte + '0';
+}
+
+
+void pretty_addr(uint8_t *addr, char *buf) {
+    int j = 0;
+
+    for (int i = 0; i < 6; ++i) {
+        buf[j++] = hexdigit(addr[i] & 0b11110000);
+        buf[j++] = hexdigit(addr[i] & 0b00001111);
+
+        if (i != 5)
+            buf[j++] = ':';
+    }
+
+    buf[j] = 0;
+}
+
+
+void update_display_search() {
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("SELECT SLAVE:");
+    display.setTextSize(1);
+
+    display.println("--------------------------");
+
+    for (int i = 0; i < peer_count; ++i) {
+        uint8_t *addr = esp_now_fetch_peer(i == 0);
+        
+        if (i == peer_chosen)
+            display.print("[*] ");
+        else
+            display.print("[ ] ");
+
+        for (int j = 0; j < 6; ++j) {
+            display.print(addr[j], HEX);
+
+            if (j < 5)
+                display.print(':');
+        }
+
+        display.println();
+    }
+}
 
 void update_display_send() {}
 
