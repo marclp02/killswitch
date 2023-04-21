@@ -135,7 +135,6 @@ void search_handle_buttons() {
         case Button::OK:
             update = true;
             if (peer_count > 0 && choose_slave()) {
-                Serial.println("DEUG");
                 update = true;
                 keepalive = false;
                 state = State::SEND;
@@ -205,28 +204,6 @@ void setup() {
 
 }
 
-char hexdigit(uint8_t byte) {
-    if (byte >= 10)
-        return (byte - 10) + 'a';
-
-    return byte + '0';
-}
-
-
-void pretty_addr(uint8_t *addr, char *buf) {
-    int j = 0;
-
-    for (int i = 0; i < 6; ++i) {
-        buf[j++] = hexdigit(addr[i] & 0b11110000);
-        buf[j++] = hexdigit(addr[i] & 0b00001111);
-
-        if (i != 5)
-            buf[j++] = ':';
-    }
-
-    buf[j] = 0;
-}
-
 
 void update_display_search() {
     display.clearDisplay();
@@ -259,23 +236,6 @@ void update_display_search() {
 }
 
 
-void serial_print_addrs() {
-    for (int i = 0; i < peer_count; ++i) {
-        uint8_t *addr = esp_now_fetch_peer(i == 0);
-
-        if (i == peer_chosen)
-            Serial.print("[*] ");
-        else
-            Serial.print("[ ] ");
-
-        char buf[30];
-        pretty_addr(addr, buf);
-
-        Serial.println(buf);
-    }
-
-    Serial.println();
-}
 
 
 void update_display_send() {
