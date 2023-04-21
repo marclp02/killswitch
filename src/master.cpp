@@ -11,8 +11,14 @@
 #define BUTTON_NEXT 14
 #define BUTTON_KILL 13
 
+#define MAX_PAIRS 5
+
 #define KEEPALIVE_INTERVAL 200
-#define DEBOUNCE_DELAY 200
+#define SCREEN_INTERVAL 150
+#define DEBOUNCE_DELAY 50
+
+#define MAXHASH         349
+#define PEERTIMEOUT     500
 
 
 enum class State {
@@ -22,9 +28,8 @@ enum class State {
 
 enum class Button {
     NONE,
-    UP,
-    OK,
-    DOWN
+    NEXT,
+    OK
 };
 
 
@@ -34,7 +39,6 @@ Adafruit_SSD1306 display(128, 64, &Wire, -1);
 State state = State::SEARCH;
 
 
-bool update = true;
 int animation_counter = 0;
 
 
@@ -45,32 +49,72 @@ int peer_chosen = 0;
 int peer_count = 0;
 
 bool send_success = true;
-bool last_send_sucess = true;
 
 unsigned long last_time = 0;
+unsigned long last_button_press = 0;
+unsigned long last_screen_update = 0;
+unsigned long last_peer_update = 0;
 
 Button button = Button::NONE;
 bool kill_is_pressed = false;
-unsigned long last_button_press = 0;
+
+unsigned long peer_last_time[MAXHASH];
+
+
+bool addrcmp(uint8_t *addr0, uint8_t *addr1) {
+    for (int i = 0; i < 6; ++i)
+        if (addr0[i] != addr1[i])
+            return false;
+
+    return true;
+}
+
+unsigned int get_addr_id(uint8_t *addr) {
+    unsigned int h = 0;
+    unsigned b = 97;
+
+    for (int i = 0; i < 6; ++i)
+        h = (h * b + addr[i]) % MAXHASH;
+
+    return h;
+}
+
+void update_peer_list() {
+    for (int i = 0; i < peer_count; ++i) {
+        // this may not work ;(
+        uint8_t *addr = esp_now_fetch_peer(i == 0);
+
+        unsigned int idx = get_addr_id(addr);
+
+        if (millis() - peer_last_time[idx] > PEERTIMEOUT) {
+            esp_now_del_peer(addr);
+            --peer_count;
+            peer_chosen = min(peer_chosen, max(0, peer_count - 1));
+        }
+    }
+}
+
 
 void recv_callback (uint8_t *addr, uint8_t *in_data, uint8_t len) {
-    if (in_data[0] == BROADCAST && !esp_now_is_peer_exist(addr)) {
-        esp_now_add_peer(addr, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
-        peer_count++;
-        update = true;
+    animation_counter = (animation_counter + 1) % 21;
+    if (in_data[0] == BROADCAST) {
+        peer_last_time[get_addr_id(addr)] = millis();
+        if (!esp_now_is_peer_exist(addr) && peer_count < 5) {
+            esp_now_add_peer(addr, ESP_NOW_ROLE_COMBO, 1, nullptr, 0);
+            peer_count++;
+        }
     }
 }
 
 void sent_callback(uint8_t *addr, uint8_t status) {
-    last_send_sucess = send_success;
+    animation_counter = (animation_counter + 1) % 21;
     send_success = (status == 0);
-    update = (send_success != last_send_sucess);
 }
 
 
-void IRAM_ATTR isr_up() {
+void IRAM_ATTR isr_next() {
     if (millis() - last_button_press > DEBOUNCE_DELAY) {
-        button = Button::UP;
+        button = Button::NEXT;
         last_button_press = millis();
     }
 }
@@ -82,27 +126,17 @@ void IRAM_ATTR isr_ok() {
     }
 }
 
-void IRAM_ATTR isr_down() {
-    if (millis() - last_button_press > DEBOUNCE_DELAY) {
-        button = Button::DOWN;
-        last_button_press = millis();
-    }
-}
-
 void IRAM_ATTR isr_kill_down() {
     if (millis() - last_button_press > DEBOUNCE_DELAY) {
         kill_is_pressed = true;
-        update = true;
     }
 }
 
 void IRAM_ATTR isr_kill_up() {
     if (millis() - last_button_press > DEBOUNCE_DELAY) {
         kill_is_pressed = false;
-        update = true;
     }
 }
-
 
 bool choose_slave() {
     uint8_t *addr = NULL;
@@ -118,25 +152,20 @@ bool choose_slave() {
     return false;
 }
 
-
 void search_handle_buttons() {
     switch (button) {
         case Button::NONE:
             break;
-        case Button::UP:
-            update = true;
-            peer_chosen = max(peer_chosen - 1, 0);
-            break;
-        case Button::DOWN:
-            update = true;
-            peer_chosen = min(peer_chosen + 1, peer_count - 1);
+        case Button::NEXT:
+            if (peer_count > 0) {
+                peer_chosen = (peer_chosen + 1) % peer_count;
+            }
             break;
         case Button::OK:
-            update = true;
             if (peer_count > 0 && choose_slave()) {
-                update = true;
                 keepalive = false;
                 state = State::SEND;
+                esp_now_unregister_recv_cb();
             }
 
             break;
@@ -146,13 +175,12 @@ void search_handle_buttons() {
 void send_handle_buttons() {
     switch (button) {
         case Button::NONE:
-        case Button::UP:
-        case Button::DOWN:
+        case Button::NEXT:
             break;
         case Button::OK:
             keepalive = false;
-            update = true;
             state = State::SEARCH;
+            esp_now_register_recv_cb(recv_callback);
             break;
     }
 }
@@ -189,13 +217,11 @@ void setup() {
     // Buttons
     pinMode(BUTTON_NEXT, INPUT_PULLUP);
     pinMode(BUTTON_OK, INPUT_PULLUP);
-    pinMode(BUTTON_DOWN, INPUT_PULLUP);
     pinMode(BUTTON_KILL, INPUT_PULLUP);
 
     // Interrupts
-    attachInterrupt(BUTTON_NEXT, isr_up, FALLING);
+    attachInterrupt(BUTTON_NEXT, isr_next, FALLING);
     attachInterrupt(BUTTON_OK, isr_ok, FALLING);
-    attachInterrupt(BUTTON_DOWN, isr_down, FALLING);
 
     // Falling and Rising for Kill button
     // TODO: function to set keepalive based on kill_is_pressed
@@ -203,7 +229,6 @@ void setup() {
     attachInterrupt(BUTTON_KILL, isr_kill_up, RISING);
 
 }
-
 
 void update_display_search() {
     display.clearDisplay();
@@ -235,15 +260,11 @@ void update_display_search() {
     display.println();
 }
 
-
-
-
 void update_display_send() {
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
     display.println("KILLSWITCH v0.1a");
-    display.printf("SLAVE:");
     for (int j = 0; j < 6; ++j) {
         display.print(slave_addr[j], HEX);
         if (j < 5)
@@ -254,39 +275,38 @@ void update_display_send() {
     display.println("|                   |");
     display.println("|                   |");
     display.println("|                   |");
-    display.println("|                   |");
     display.println("---------------------");
 
     display.setTextSize(2);
     if (send_success && keepalive) {
-        display.setCursor(64, 22);
+        display.setCursor(48, 28);
         display.print("ON");
     }
     else if (send_success && !keepalive) {
-        display.setCursor(64, 20);
+        display.setCursor(44, 30);
         display.print("OFF");
     }
     else if (!send_success) {
-        display.setCursor(64, 16);
+        display.setCursor(36, 30);
         display.print("RECON");
     }
-
 }
 
 
-
 void loop() {
-    unsigned long elapsed = millis() - last_time;
     switch (state) {
         case State::SEARCH:
             search_handle_buttons();
+            if ((millis() - last_peer_update) > PEERTIMEOUT) {
+                update_peer_list();
+            }
             break;
         case State::SEND:
             send_handle_buttons();
             if (!send_success) {
                 keepalive = false;
             }
-            if (elapsed > KEEPALIVE_INTERVAL) {
+            if ((millis() - last_time) > KEEPALIVE_INTERVAL) {
                 send_keepalive(keepalive);
                 last_time = millis();
             }
@@ -295,8 +315,7 @@ void loop() {
 
     button = Button::NONE;
 
-    if (update) {
-        animation_counter = (animation_counter + 1) % 21;
+    if ((millis() - last_screen_update) > SCREEN_INTERVAL) {
         switch (state) {
             case State::SEARCH:
                 update_display_search();
@@ -305,14 +324,12 @@ void loop() {
                 update_display_send();
                 break;
         }
-        /*
         display.setTextSize(1);
-        display.setCursor(0, 10);
+        display.setCursor(0, 56);
         for (int i = 0; i < animation_counter; ++i) {
             display.print("*");
         }
-         */
         display.display();
-        update = false;
+        last_screen_update = millis();
     }
 }
