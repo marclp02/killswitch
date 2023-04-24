@@ -119,11 +119,23 @@ void IRAM_ATTR isr_next() {
     }
 }
 
+
+int last_butstate = 0;
+
+
 void IRAM_ATTR isr_ok() {
+    int dig = digitalRead(BUTTON_OK);
+    Serial.println(dig);
+
     if (millis() - last_button_press > DEBOUNCE_DELAY) {
-        button = Button::OK;
-        last_button_press = millis();
+        if (dig == 0 && last_butstate == 1) {
+            Serial.println("pressed");
+            button = Button::OK;
+            last_button_press = millis();
+        }
     }
+
+    last_butstate = dig;
 }
 
 void IRAM_ATTR isr_kill_down() {
@@ -160,6 +172,7 @@ void search_handle_buttons() {
             if (peer_count > 0) {
                 peer_chosen = (peer_chosen + 1) % peer_count;
             }
+            button = Button::NONE;
             break;
         case Button::OK:
             if (peer_count > 0 && choose_slave()) {
@@ -167,6 +180,7 @@ void search_handle_buttons() {
                 state = State::SEND;
                 esp_now_unregister_recv_cb();
             }
+            button = Button::NONE;
 
             break;
     }
@@ -181,6 +195,7 @@ void send_handle_buttons() {
             keepalive = false;
             state = State::SEARCH;
             esp_now_register_recv_cb(recv_callback);
+            button = Button::NONE;
             break;
     }
 }
@@ -221,7 +236,7 @@ void setup() {
 
     // Interrupts
     attachInterrupt(BUTTON_NEXT, isr_next, FALLING);
-    attachInterrupt(BUTTON_OK, isr_ok, FALLING);
+    attachInterrupt(BUTTON_OK, isr_ok, CHANGE);
 
     // Falling and Rising for Kill button
     // TODO: function to set keepalive based on kill_is_pressed
@@ -306,14 +321,13 @@ void loop() {
             if (!send_success) {
                 keepalive = false;
             }
-            if ((millis() - last_time) > KEEPALIVE_INTERVAL) {
+            if (state == State::SEND && (millis() - last_time) > KEEPALIVE_INTERVAL) {
                 send_keepalive(keepalive);
                 last_time = millis();
             }
             break;
     }
 
-    button = Button::NONE;
 
     if ((millis() - last_screen_update) > SCREEN_INTERVAL) {
         switch (state) {
@@ -332,4 +346,5 @@ void loop() {
         display.display();
         last_screen_update = millis();
     }
+
 }
