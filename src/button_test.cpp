@@ -83,7 +83,7 @@ void setup() {
 }
 
 
-unsigned long last_time = 0;
+unsigned long last_keepalive_update = 0;
 int counter = 1;
 
 void loop() {
@@ -97,7 +97,7 @@ void loop() {
 //    }
 
     unsigned long curr_time = millis();
-    unsigned long elapsed = curr_time - last_time;
+    unsigned long elapsed = curr_time - last_keepalive_update;
 
     if (change) {
         if (elapsed > 200) {
@@ -109,7 +109,7 @@ void loop() {
             Serial.println(button.DOWN);
             Serial.println();
 
-            last_time = curr_time;
+            last_keepalive_update = curr_time;
         }
 
         change = false;

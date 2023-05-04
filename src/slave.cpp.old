@@ -7,7 +7,7 @@
 
 
 int state = BROADCAST_STATE;
-unsigned long last_time = 0;
+unsigned long last_keepalive_update = 0;
 
 Packet last_packet;
 bool got_new_packet = false;
@@ -66,12 +66,12 @@ void setup() {
 
 void handle_broadcast_state() {
     unsigned long curr_time = millis();
-    unsigned long elapsed = curr_time - last_time;
+    unsigned long elapsed = curr_time - last_keepalive_update;
 
 
     if (elapsed > BROADCAST_DELAY) {
         send_broadcast_packet();
-        last_time = curr_time;
+        last_keepalive_update = curr_time;
     }
 
     
@@ -82,7 +82,7 @@ void handle_broadcast_state() {
     switch (last_packet.type) {
         case DISARM_PACK:
             state = DISARMED_STATE;
-            last_time = curr_time;
+            last_keepalive_update = curr_time;
             break;
 
         case BEEP_PACK:
@@ -96,12 +96,12 @@ void handle_broadcast_state() {
 
 void handle_disarmed_state() {
     unsigned long curr_time = millis();
-    unsigned long elapsed = curr_time - last_time;
+    unsigned long elapsed = curr_time - last_keepalive_update;
 
 
     if (elapsed > KEEPALIVE_TIMEOUT) {
         state = RECONN_STATE;
-        last_time = curr_time;
+        last_keepalive_update = curr_time;
         return;
     }
 
@@ -114,13 +114,13 @@ void handle_disarmed_state() {
         case ARM_PACK:
             if (elapsed > ARM_COOLDOWN) {
                 state = ARMED_STATE;
-                last_time = curr_time;
+                last_keepalive_update = curr_time;
             }
 
             break;
 
         case KEEPALIVE_PACK:
-            last_time = curr_time;
+            last_keepalive_update = curr_time;
             break;
 
         case BEEP_PACK:
@@ -134,11 +134,11 @@ void handle_disarmed_state() {
 
 void handle_armed_state() {
     unsigned long curr_time = millis();
-    unsigned long elapsed = curr_time - last_time;
+    unsigned long elapsed = curr_time - last_keepalive_update;
 
     if (elapsed > KEEPALIVE_TIMEOUT) {
         state = RECONN_STATE;
-        curr_time = last_time;
+        curr_time = last_keepalive_update;
         return;
     }
 
@@ -153,7 +153,7 @@ void handle_armed_state() {
             break;
 
         case KEEPALIVE_PACK:
-            last_time = curr_time;
+            last_keepalive_update = curr_time;
             break;
     }
 }
@@ -162,20 +162,20 @@ void handle_armed_state() {
 
 void handle_reconn_state() {
     unsigned long curr_time = millis();
-    unsigned long elapsed = curr_time - last_time;
+    unsigned long elapsed = curr_time - last_keepalive_update;
 
 
     // something wrong with time for sure
     if (elapsed > RECONN_TIMEOUT) {
         state = BROADCAST_STATE;
-        last_time = curr_time;
+        last_keepalive_update = curr_time;
         return;
     }
 
 
     if (elapsed > RECONN_DELAY) {
         send_reconn_packet();
-        last_time = curr_time;
+        last_keepalive_update = curr_time;
     }
 
 
@@ -186,7 +186,7 @@ void handle_reconn_state() {
     switch (last_packet.type) {
         case RECONN_PACK:
             state = DISARMED_STATE;
-            last_time = curr_time;
+            last_keepalive_update = curr_time;
             break;
 
         case BEEP_PACK:
